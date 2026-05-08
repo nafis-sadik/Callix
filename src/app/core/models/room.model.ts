@@ -1,5 +1,5 @@
 export type RoomType = 'meeting' | 'chat';
-export type EncryptionAlgorithm = 'AES-GCM-256' | 'AES-CBC-256' | 'ChaCha20-Poly1305';
+export type EncryptionAlgorithm = 'AES-GCM-256' | 'AES-CBC-256' | 'ChaCha20-Poly1305' | 'none';
 
 export interface Room {
   id: string;

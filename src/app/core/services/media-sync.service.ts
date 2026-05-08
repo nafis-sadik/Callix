@@ -14,7 +14,7 @@ export class MediaSyncService {
       senderId: '',
       encrypted: false
     };
-    this.peerService.broadcastMessage(msg);
+    this.peerService.broadcastMessage(msg).catch(err => console.error('Failed to broadcast media sync:', err));
   }
 
   syncPlayback(action: 'play' | 'pause' | 'seek', currentTime: number): void {
@@ -25,7 +25,7 @@ export class MediaSyncService {
       senderId: '',
       encrypted: false
     };
-    this.peerService.broadcastMessage(msg);
+    this.peerService.broadcastMessage(msg).catch(err => console.error('Failed to broadcast sync playback:', err));
   }
 
   stopMediaPlayback(): void {
@@ -36,6 +36,6 @@ export class MediaSyncService {
       senderId: '',
       encrypted: false
     };
-    this.peerService.broadcastMessage(msg);
+    this.peerService.broadcastMessage(msg).catch(err => console.error('Failed to broadcast stop media:', err));
   }
 }

@@ -46,6 +46,7 @@ export class RoomService {
   }
 
   private handlePeerMessage(message: PeerMessage): void {
+    if (!message || !message.payload) return;
     switch (message.type) {
       case 'chat':
         this.addMessage(message.payload, 'text', true);
@@ -86,6 +87,9 @@ export class RoomService {
       case 'key-exchange':
         this.handleKeyExchange(message);
         break;
+      case 'key-exchange-response':
+        this.handleKeyExchangeResponse(message);
+        break;
     }
   }
 
@@ -107,13 +111,6 @@ export class RoomService {
       sharedFiles: [],
       createdAt: Date.now()
     };
-
-    room.participants.set(user.id, {
-      id: user.id,
-      displayName: user.displayName,
-      peerId: this.peerService.peerId || user.peerId,
-      isHost: true
-    });
 
     this.peerService.destroy();
     this.peerService.initializePeer(roomId);
@@ -181,8 +178,10 @@ export class RoomService {
       createdAt: room.createdAt
     }, user?.id || '');
 
-    this.peerService.sendMessage(request.peerId, response);
-    this.initiateKeyExchange(request.peerId);
+    this.peerService.sendMessage(request.peerId, response).catch(err => console.error('Failed to send approve response:', err));
+    if (room.encryptionAlgorithm !== 'none') {
+      this.initiateKeyExchange(request.peerId);
+    }
     this.sendHistorySync(request.peerId);
   }
 
@@ -200,7 +199,7 @@ export class RoomService {
     const user = this.authService.currentUser();
     const response = this.createPeerMessage('join-response', { approved: false }, user?.id || '');
 
-    this.peerService.sendMessage(request.peerId, response);
+    this.peerService.sendMessage(request.peerId, response).catch(err => console.error('Failed to send deny response:', err));
   }
 
   approveAll(): void {
@@ -229,7 +228,7 @@ export class RoomService {
     const user = this.authService.currentUser();
     const kickMsg = this.createPeerMessage('kick', { userId }, user?.id || '');
 
-    this.peerService.sendMessage(participant.peerId, kickMsg);
+    this.peerService.sendMessage(participant.peerId, kickMsg).catch(err => console.error('Failed to send kick message:', err));
     this.banUser(userId);
 
     room.participants.delete(userId);
@@ -272,7 +271,7 @@ export class RoomService {
       const user = this.authService.currentUser();
       const destroyMsg = this.createPeerMessage('room-destroyed', { roomId: room.id }, user?.id || '');
 
-      this.peerService.broadcastMessage(destroyMsg);
+      this.peerService.broadcastMessage(destroyMsg).catch(err => console.error('Failed to broadcast room destroy:', err));
       this.peerService.destroy();
     } else {
       const host = Array.from(room.participants.values()).find(p => p.isHost);
@@ -319,7 +318,7 @@ export class RoomService {
 
     if (!fromPeer && type !== 'system') {
       const msg = this.createPeerMessage('chat', message, user.id);
-      this.peerService.broadcastMessage(msg);
+      this.peerService.broadcastMessage(msg).catch(err => console.error('Failed to broadcast message:', err));
     }
   }
 
@@ -348,7 +347,7 @@ export class RoomService {
     const user = this.authService.currentUser();
     if (user && file.senderId === user.id) {
       const msg = this.createPeerMessage('chat', message, user.id);
-      this.peerService.broadcastMessage(msg);
+      this.peerService.broadcastMessage(msg).catch(err => console.error('Failed to broadcast file message:', err));
     }
   }
 
@@ -363,7 +362,7 @@ export class RoomService {
     if (room.banList.has(payload.userId)) {
       const user = this.authService.currentUser();
       const response = this.createPeerMessage('join-response', { approved: false, reason: 'banned' }, user?.id || '');
-      this.peerService.sendMessage(payload.peerId, response);
+      this.peerService.sendMessage(payload.peerId, response).catch(err => console.error('Failed to send ban response:', err));
       return;
     }
 
@@ -435,15 +434,37 @@ export class RoomService {
   }
 
   private handleKeyExchange(message: PeerMessage): void {
+    const room = this.currentRoom();
+    if (!room || room.encryptionAlgorithm === 'none') return;
     const { publicKey } = message.payload;
     if (!publicKey) return;
 
-    this.encryptionService.importPublicKey(publicKey).then(async (importedKey) => {
-      await this.encryptionService.deriveSharedSecret(importedKey);
-      const roomKey = await this.encryptionService.generateRoomKey('AES-GCM-256');
-      this.encryptionService.setRoomKey(roomKey);
+    Promise.resolve().then(async () => {
+      const ecdhKeyPair = await this.encryptionService.generateKeyPair();
+      const hostPublicKey = await this.encryptionService.importPublicKey(publicKey);
+      const sharedSecret = await this.encryptionService.deriveSharedSecret(hostPublicKey);
+      await this.encryptionService.deriveRoomKeyFromShared(sharedSecret);
+
+      const myPublicKey = await this.encryptionService.exportPublicKey();
+      const response = this.createPeerMessage('key-exchange-response', { publicKey: myPublicKey }, this.authService.currentUser()?.id || '');
+      await this.peerService.sendMessage(message.senderId, response);
     }).catch(err => {
       console.error('Key exchange failed:', err);
+    });
+  }
+
+  private handleKeyExchangeResponse(message: PeerMessage): void {
+    const room = this.currentRoom();
+    if (!room || room.encryptionAlgorithm === 'none') return;
+    const { publicKey } = message.payload;
+    if (!publicKey) return;
+
+    Promise.resolve().then(async () => {
+      const peerPublicKey = await this.encryptionService.importPublicKey(publicKey);
+      const sharedSecret = await this.encryptionService.deriveSharedSecret(peerPublicKey);
+      await this.encryptionService.deriveRoomKeyFromShared(sharedSecret);
+    }).catch(err => {
+      console.error('Key exchange response failed:', err);
     });
   }
 
@@ -451,10 +472,7 @@ export class RoomService {
     this.encryptionService.generateKeyPair().then(async () => {
       const publicKey = await this.encryptionService.exportPublicKey();
       const msg = this.createPeerMessage('key-exchange', { peerId, publicKey }, this.authService.currentUser()?.id || '');
-      this.peerService.sendMessage(peerId, msg);
-
-      const roomKey = await this.encryptionService.generateRoomKey('AES-GCM-256');
-      this.encryptionService.setRoomKey(roomKey);
+      await this.peerService.sendMessage(peerId, msg);
     }).catch(err => {
       console.error('Failed to initiate key exchange:', err);
     });
@@ -478,7 +496,7 @@ export class RoomService {
     };
 
     const msg = this.createPeerMessage('history-sync', syncPayload, this.authService.currentUser()?.id || '');
-    this.peerService.sendMessage(peerId, msg);
+    this.peerService.sendMessage(peerId, msg).catch(err => console.error('Failed to send history sync:', err));
   }
 
   private handleHistorySync(payload: HistorySyncPayload): void {

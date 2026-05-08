@@ -9,11 +9,12 @@ import { RecordingService } from '../../../core/services/recording.service';
 import { MediaSyncService } from '../../../core/services/media-sync.service';
 import { FileTransferService } from '../../../core/services/file-transfer.service';
 import { AlertService } from '../../../core/services/alert.service';
-import { User } from '../../../core/models/room.model';
+import { SharedFile } from '../../../core/models/room.model';
 import { PeerMessage } from '../../../core/models/peer-message.model';
 import { QrCodeModalComponent } from '../../../shared/components/qr-code-modal/qr-code-modal.component';
 import { FileUploadComponent } from '../../../shared/components/file-upload/file-upload.component';
 import { TimeAgoPipe } from '../../../shared/pipes/time-ago.pipe';
+import { LucideAngularModule } from 'lucide-angular';
 
 @Component({
   selector: 'app-meeting-room',
@@ -21,7 +22,7 @@ import { TimeAgoPipe } from '../../../shared/pipes/time-ago.pipe';
   imports: [
     CommonModule, FormsModule, SlicePipe,
     QrCodeModalComponent, FileUploadComponent,
-    TimeAgoPipe
+    TimeAgoPipe, LucideAngularModule
   ],
   templateUrl: './meeting-room.html',
   styleUrl: './meeting-room.scss',
@@ -226,15 +227,18 @@ export class MeetingRoomComponent implements OnInit {
     }
   }
 
-  onFileSelected(file: File): void {
-    if (file.size > this.fileTransferService.LARGE_FILE_THRESHOLD) {
-      this.alertService.showLargeFileWarning(file.name, file.size).then(confirmed => {
+  async onFileSelected(file: File): Promise<void> {
+    try {
+      if (file.size > this.fileTransferService.LARGE_FILE_THRESHOLD) {
+        const confirmed = await this.alertService.showLargeFileWarning(file.name, file.size);
         if (confirmed) {
-          this.sendFile(file);
+          await this.sendFile(file);
         }
-      });
-    } else {
-      this.sendFile(file);
+      } else {
+        await this.sendFile(file);
+      }
+    } catch (err) {
+      console.error('File transfer failed:', err);
     }
   }
 
@@ -293,17 +297,20 @@ export class MeetingRoomComponent implements OnInit {
     this.roomService.unbanAll();
   }
 
-  copyToClipboard(text: string): void {
-    navigator.clipboard.writeText(text).then(() => {
+  async copyToClipboard(text: string): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(text);
       this.alertService.showSuccess('Copied!', 'Room ID copied to clipboard.');
-    });
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
   }
 
   closeRoomInfo = () => {
     this.showRoomInfo.set(false);
   };
 
-  downloadFile(file: any): void {
+  downloadFile(file: SharedFile): void {
     if (file.data) {
       const blob = new Blob([file.data], { type: file.mimeType });
       const url = URL.createObjectURL(blob);

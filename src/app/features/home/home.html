@@ -17,7 +17,7 @@
           class="px-4 py-3 rounded-lg border bg-transparent focus:outline-none"
           style="border-color: var(--color-glass-border); color: var(--color-text-primary);"
         >
-          <option *ngFor="let opt of getEncryptionOptions()" [value]="opt">{{ opt }}</option>
+              <option *ngFor="let opt of getEncryptionOptions()" [value]="opt.value">{{ opt.label }}</option>
         </select>
         <button
           (click)="startMeeting()"
@@ -81,7 +81,7 @@
               class="px-4 py-3 rounded-lg border bg-transparent focus:outline-none"
               style="border-color: var(--color-glass-border); color: var(--color-text-primary);"
             >
-              <option *ngFor="let opt of getEncryptionOptions()" [value]="opt">{{ opt }}</option>
+          <option *ngFor="let opt of getEncryptionOptions()" [value]="opt.value">{{ opt.label }}</option>
             </select>
             <button
               (click)="createChatRoom()"

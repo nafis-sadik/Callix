@@ -113,7 +113,7 @@
               </div>
               @if (message.type === 'file') {
                 <div class="text-sm" style="color: var(--color-text-primary);">
-                  <span>📎 {{ message.content }}</span>
+                  <span><lucide-angular name="paperclip" size="14" class="inline-block align-text-top"></lucide-angular> {{ message.content }}</span>
                   @if (fileTransferService.getFileById(message.id); as file) {
                     <button (click)="downloadFile(file)"
                       class="ml-2 px-2 py-1 text-xs rounded text-white"
@@ -182,9 +182,9 @@
         title="Toggle Microphone"
       >
         @if (micOn()) {
-          <span>🎤</span>
+          <lucide-angular name="mic" size="20" class="inline-block align-middle"></lucide-angular>
         } @else {
-          <span>🔇</span>
+          <lucide-angular name="mic-off" size="20" class="inline-block align-middle"></lucide-angular>
         }
       </button>
 
@@ -196,9 +196,9 @@
         title="Toggle Camera"
       >
         @if (cameraOn()) {
-          <span>📹</span>
+          <lucide-angular name="video" size="20" class="inline-block align-middle"></lucide-angular>
         } @else {
-          <span>🚫</span>
+          <lucide-angular name="video-off" size="20" class="inline-block align-middle"></lucide-angular>
         }
       </button>
 
@@ -209,7 +209,7 @@
         style="background: var(--color-glass-bg); color: var(--color-text-secondary);"
         title="Toggle Screen Share"
       >
-        <span>🖥️</span>
+        <lucide-angular name="monitor" size="20" class="inline-block align-middle"></lucide-angular>
       </button>
 
       <button
@@ -219,7 +219,7 @@
         style="background: var(--color-glass-bg); color: var(--color-text-secondary);"
         title="Toggle Recording"
       >
-        <span>⏺️</span>
+        <lucide-angular name="circle" size="20" class="inline-block align-middle"></lucide-angular>
         @if (recording()) {
           <div class="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
         }
@@ -231,7 +231,7 @@
         style="background: var(--color-glass-bg); color: var(--color-text-secondary);"
         title="Toggle Chat"
       >
-        <span>💬</span>
+        <lucide-angular name="message-circle" size="20" class="inline-block align-middle"></lucide-angular>
         @if (roomService.messages().length > 0) {
           <div class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center">
             {{ roomService.messages().length }}
@@ -245,7 +245,7 @@
         style="background: var(--color-glass-bg); color: var(--color-text-secondary);"
         title="Participants"
       >
-        <span>👥</span>
+        <lucide-angular name="users" size="20" class="inline-block align-middle"></lucide-angular>
         @if (roomService.participants().length > 0) {
           <div class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-green-500 text-white text-xs flex items-center justify-center">
             {{ roomService.participants().length }}
@@ -260,7 +260,7 @@
           style="background: var(--color-glass-bg); color: var(--color-accent);"
           title="Media Player"
         >
-          <span>🎬</span>
+          <lucide-angular name="film" size="20" class="inline-block align-middle"></lucide-angular>
         </button>
       }
 
@@ -270,7 +270,7 @@
         style="background: var(--color-glass-bg); color: var(--color-text-secondary);"
         title="Room Info"
       >
-        <span>ℹ️</span>
+        <lucide-angular name="info" size="20" class="inline-block align-middle"></lucide-angular>
       </button>
 
       @if (isHost()) {
@@ -280,7 +280,7 @@
           style="background: var(--color-glass-bg); color: var(--color-text-secondary);"
           title="Join Requests"
         >
-          <span>📩</span>
+          <lucide-angular name="user-plus" size="20" class="inline-block align-middle"></lucide-angular>
           @if (roomService.pendingRequests().length > 0) {
             <div class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-yellow-500 text-white text-xs flex items-center justify-center">
               {{ roomService.pendingRequests().length }}
@@ -296,7 +296,7 @@
           style="background: var(--color-glass-bg); color: var(--color-danger);"
           title="Ban List"
         >
-          <span>🚫</span>
+          <lucide-angular name="ban" size="20" class="inline-block align-middle"></lucide-angular>
         </button>
       }
 
@@ -355,7 +355,7 @@
     <div class="fixed right-0 top-0 h-full w-80 glass-card rounded-none z-50 p-6 overflow-y-auto">
       <div class="flex justify-between items-center mb-6">
         <h3 class="text-lg font-semibold" style="color: var(--color-text-primary);">Participants ({{ roomService.participants().length }})</h3>
-        <button (click)="showParticipants.set(false)" style="color: var(--color-text-secondary);">✕</button>
+        <button (click)="showParticipants.set(false)" style="color: var(--color-text-secondary);"><lucide-angular name="x" size="16" class="inline-block align-middle"></lucide-angular></button>
       </div>
 
       @for (participant of roomService.participants(); track participant.id) {
@@ -396,7 +396,7 @@
     <div class="fixed right-0 top-0 h-full w-96 glass-card rounded-none z-50 p-6 overflow-y-auto">
       <div class="flex justify-between items-center mb-6">
         <h3 class="text-lg font-semibold" style="color: var(--color-text-primary);">Join Requests</h3>
-        <button (click)="showJoinRequests.set(false)" style="color: var(--color-text-secondary);">✕</button>
+        <button (click)="showJoinRequests.set(false)" style="color: var(--color-text-secondary);"><lucide-angular name="x" size="16" class="inline-block align-middle"></lucide-angular></button>
       </div>
 
       @if (roomService.pendingRequests().length === 0) {
@@ -454,7 +454,7 @@
     <div class="fixed right-0 top-0 h-full w-96 glass-card rounded-none z-50 p-6 overflow-y-auto">
       <div class="flex justify-between items-center mb-6">
         <h3 class="text-lg font-semibold" style="color: var(--color-text-primary);">Ban List</h3>
-        <button (click)="showBanList.set(false)" style="color: var(--color-text-secondary);">✕</button>
+        <button (click)="showBanList.set(false)" style="color: var(--color-text-secondary);"><lucide-angular name="x" size="16" class="inline-block align-middle"></lucide-angular></button>
       </div>
 
       @if (roomService.banList().length === 0) {

@@ -1,5 +1,4 @@
 import { Component, Output, EventEmitter } from '@angular/core';
-import { FileTransferService } from '../../../core/services/file-transfer.service';
 
 @Component({
   selector: 'app-file-upload',
@@ -19,8 +18,6 @@ import { FileTransferService } from '../../../core/services/file-transfer.servic
 })
 export class FileUploadComponent {
   @Output() fileSelected = new EventEmitter<File>();
-  
-  constructor(private fileTransferService: FileTransferService) {}
 
   onFileSelected(event: any): void {
     const file = event.target.files[0];

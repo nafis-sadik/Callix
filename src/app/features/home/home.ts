@@ -40,14 +40,16 @@ export class HomeComponent {
     }
   }
 
-  startMeeting(): void {
+  async startMeeting(): Promise<void> {
     if (!this.newRoomName.trim()) {
       this.alertService.showError('Error', 'Please enter a room name');
       return;
     }
 
-    const room = this.roomService.createRoom('meeting', this.newRoomName);
-    this.encryptionService.generateRoomKey(room.encryptionAlgorithm);
+    const room = this.roomService.createRoom('meeting', this.newRoomName, this.encryptionAlgo);
+    if (this.encryptionAlgo !== 'none') {
+      await this.encryptionService.generateRoomKey(this.encryptionAlgo);
+    }
 
     this.router.navigate(['/meeting', room.id]);
   }
@@ -75,10 +77,11 @@ export class HomeComponent {
       return;
     }
 
-    const room = this.roomService.createRoom('chat', this.newRoomName);
-    const rooms = this.chatRooms();
-    rooms.push(room);
-    this.chatRooms.set([...rooms]);
+    const room = this.roomService.createRoom('chat', this.newRoomName, this.encryptionAlgo);
+    if (this.encryptionAlgo !== 'none') {
+      this.encryptionService.generateRoomKey(this.encryptionAlgo);
+    }
+    this.chatRooms.update(rooms => [...rooms, room]);
 
     this.newRoomName = '';
     this.showCreateChat.set(false);
@@ -89,7 +92,12 @@ export class HomeComponent {
     this.chatRooms.set(rooms);
   }
 
-  getEncryptionOptions(): EncryptionAlgorithm[] {
-    return ['AES-GCM-256', 'AES-CBC-256', 'ChaCha20-Poly1305'];
+  getEncryptionOptions(): { value: EncryptionAlgorithm; label: string }[] {
+    return [
+      { value: 'AES-GCM-256', label: 'AES-GCM-256 (Encrypted)' },
+      { value: 'AES-CBC-256', label: 'AES-CBC-256 (Encrypted)' },
+      { value: 'ChaCha20-Poly1305', label: 'ChaCha20-Poly1305 (Encrypted)' },
+      { value: 'none', label: 'None (No Encryption)' }
+    ];
   }
 }

@@ -51,7 +51,7 @@ export class EncryptionService {
     combined.set(iv);
     combined.set(new Uint8Array(encrypted), iv.length);
     
-    return btoa(String.fromCharCode(...combined));
+    return this.bufferToBase64(combined);
   }
 
   async decrypt(encryptedData: string, key?: CryptoKey): Promise<string> {
@@ -75,7 +75,7 @@ export class EncryptionService {
     const k = key || this.roomKey;
     if (!k) throw new Error('No key to export');
     const exported = await crypto.subtle.exportKey('raw', k);
-    return btoa(String.fromCharCode(...new Uint8Array(exported)));
+    return this.bufferToBase64(new Uint8Array(exported));
   }
 
   async importKey(keyData: string, algorithm: string = 'AES-GCM'): Promise<CryptoKey> {
@@ -90,10 +90,23 @@ export class EncryptionService {
     return this.roomKey;
   }
 
+  async   deriveRoomKeyFromShared(sharedSecret: ArrayBuffer): Promise<CryptoKey> {
+    return crypto.subtle.importKey(
+      'raw',
+      sharedSecret,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['encrypt', 'decrypt']
+    ).then(key => {
+      this.roomKey = key;
+      return key;
+    });
+  }
+
   async exportPublicKey(): Promise<string> {
     if (!this.ecdhKeyPair) throw new Error('No ECDH key pair');
     const exported = await crypto.subtle.exportKey('raw', this.ecdhKeyPair.publicKey);
-    return btoa(String.fromCharCode(...new Uint8Array(exported)));
+    return this.bufferToBase64(new Uint8Array(exported));
   }
 
   async importPublicKey(keyData: string): Promise<CryptoKey> {
@@ -118,5 +131,13 @@ export class EncryptionService {
   clearKeys(): void {
     this.roomKey = null;
     this.ecdhKeyPair = null;
+  }
+
+  private bufferToBase64(buffer: Uint8Array): string {
+    let binary = '';
+    for (let i = 0; i < buffer.length; i++) {
+      binary += String.fromCharCode(buffer[i]);
+    }
+    return btoa(binary);
   }
 }

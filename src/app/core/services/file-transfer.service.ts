@@ -133,13 +133,19 @@ export class FileTransferService {
     const pending = this.pendingReceptions.get(fileId);
     if (!pending) return;
 
-    const allParts = pending.data.filter(Boolean);
-    const totalLength = allParts.reduce((sum, part) => sum + part.length, 0);
+    if (pending.receivedChunks < pending.chunks) {
+      console.error(`File ${fileId}: missing ${pending.chunks - pending.receivedChunks} chunks, discarding`);
+      this.pendingReceptions.delete(fileId);
+      this.updateProgress(fileId, -1);
+      return;
+    }
+
+    const totalLength = pending.data.reduce((sum, part) => sum + part.length, 0);
     const combined = new Uint8Array(totalLength);
     let offset = 0;
-    for (const part of allParts) {
-      combined.set(part, offset);
-      offset += part.length;
+    for (let i = 0; i < pending.data.length; i++) {
+      combined.set(pending.data[i], offset);
+      offset += pending.data[i].length;
     }
 
     const sharedFile: SharedFile = {

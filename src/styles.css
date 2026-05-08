@@ -61,6 +61,19 @@
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
 }
 
+/* ── Button defaults ─────────────────────────────────────── */
+button:not(:disabled) {
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  filter: brightness(0.88);
+}
+
+.dark button:hover:not(:disabled) {
+  filter: brightness(1.18);
+}
+
 /* ── Base styles ─────────────────────────────────────────── */
 html, body {
   margin:0;

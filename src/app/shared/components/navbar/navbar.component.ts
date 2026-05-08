@@ -1,7 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
-import { ThemeService } from '../../../core/services/theme.service';
 import { ThemeToggleComponent } from '../theme-toggle/theme-toggle.component';
 
 @Component({

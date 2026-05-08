@@ -1,19 +1,20 @@
 import { Component, Input, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { QRCodeComponent } from 'angularx-qrcode';
+import { LucideAngularModule } from 'lucide-angular';
 import { AlertService } from '../../../core/services/alert.service';
 
 @Component({
   selector: 'app-qr-code-modal',
   standalone: true,
-  imports: [CommonModule, QRCodeComponent],
+  imports: [CommonModule, QRCodeComponent, LucideAngularModule],
   template: `
     @if (show) {
       <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div class="glass-card p-6 w-full max-w-sm animate__animated animate__zoomIn">
           <div class="flex justify-between items-center mb-4">
             <h3 class="text-lg font-semibold" style="color: var(--color-text-primary);">Room QR Code</h3>
-            <button (click)="onClose()" style="color: var(--color-text-secondary);">✕</button>
+            <button (click)="onClose()" style="color: var(--color-text-secondary);"><lucide-angular name="x" size="16" class="inline-block align-middle"></lucide-angular></button>
           </div>
            
           <div class="text-center mb-4">
@@ -57,9 +58,13 @@ export class QrCodeModalComponent {
   @Input() show = false;
   @Input() close = () => {};
 
-  copyToClipboard(): void {
-    navigator.clipboard.writeText(this.roomId);
-    this.alertService.showSuccess('Copied!', 'Room ID copied to clipboard.');
+  async copyToClipboard(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(this.roomId);
+      this.alertService.showSuccess('Copied!', 'Room ID copied to clipboard.');
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
   }
 
   downloadQR(): void {

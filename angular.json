@@ -32,6 +32,11 @@
             "styles": [
               "src/styles.css",
               "node_modules/animate.css/animate.min.css"
+            ],
+            "allowedCommonJsDependencies": [
+              "sweetalert2",
+              "qrcode",
+              "sdp"
             ]
           },
           "configurations": {
@@ -47,13 +52,18 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "500kB",
+                  "maximumWarning": "600kB",
                   "maximumError": "1MB"
                 },
                 {
                   "type": "anyComponentStyle",
                   "maximumWarning": "4kB",
                   "maximumError": "8kB"
+                },
+                {
+                  "type": "anyScript",
+                  "maximumWarning": "300kB",
+                  "maximumError": "500kB"
                 }
               ],
               "outputHashing": "all"

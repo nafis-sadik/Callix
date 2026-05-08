@@ -3,7 +3,6 @@ import { Subject } from 'rxjs';
 import Peer from 'peerjs';
 import { EncryptionService } from './encryption.service';
 import { PeerMessage } from '../models/peer-message.model';
-import { User } from '../models/user.model';
 
 @Injectable({ providedIn: 'root' })
 export class PeerService {
