@@ -1,0 +1,12 @@
+:host {
+  display: block;
+}
+
+input:focus {
+  border-color: var(--color-primary) !important;
+}
+
+button:hover {
+  transform: translateY(-1px);
+  transition: transform 0.15s ease;
+}

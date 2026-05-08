@@ -1,0 +1,471 @@
+<div class="h-screen flex flex-col bg-[var(--color-surface)]">
+  
+    <!-- Main Content Area -->
+  <div class="flex-1 flex overflow-hidden">
+     
+    <!-- Video Area (Left Side) -->
+    <div class="flex-1 flex flex-col p-4">
+       
+      <!-- Big Screen Area -->
+      <div class="flex-1 glass-card mb-4 overflow-hidden relative">
+        @if (screenSharing()) {
+          <!-- Screen Share Display -->
+          <div class="w-full h-full flex items-center justify-center bg-black">
+            <p style="color: white;">Screen Share Active</p>
+          </div>
+        } @else if (mediaUrl() && showMediaPlayer()) {
+          <!-- Media Player -->
+          <div class="w-full h-full flex items-center justify-center bg-black">
+            <video 
+              [src]="mediaUrl()" 
+              controls 
+              class="max-h-full max-w-full"
+            ></video>
+          </div>
+        } @else if (remoteStreams().length > 0) {
+          <!-- Show remote stream in big screen -->
+          <div class="w-full h-full flex items-center justify-center bg-black">
+            @for (item of remoteStreams(); track item.peerId) {
+              <video 
+                [srcObject]="item.stream" 
+                autoplay 
+                class="max-h-full max-w-full rounded-lg"
+              ></video>
+            }
+          </div>
+        } @else {
+          <!-- Local Video or Camera Off -->
+          <div class="w-full h-full flex items-center justify-center">
+            @if (localStream) {
+              <video 
+                [srcObject]="localStream" 
+                autoplay 
+                muted 
+                class="max-h-full max-w-full rounded-lg"
+              ></video>
+            } @else {
+              <div class="text-center" style="color: var(--color-text-secondary);">
+                <p class="text-xl">Camera is off</p>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- Participant Carousel -->
+      <div class="h-32 glass-card p-2">
+        <div class="flex items-center gap-2 overflow-x-auto h-full">
+          <!-- Local participant -->
+          @if (localStream) {
+            <div class="flex-shrink-0 w-24 h-full glass-card p-2 flex flex-col items-center justify-center">
+              <video 
+                [srcObject]="localStream"
+                autoplay 
+                muted 
+                class="w-full h-full object-cover rounded"
+              ></video>
+              <span class="text-xs mt-1 truncate w-full text-center" style="color: var(--color-text-secondary);">
+                {{ authService.currentUser()?.displayName || 'You' }} (You)
+              </span>
+            </div>
+          }
+          
+          <!-- Remote participants -->
+          @for (item of remoteStreams(); track item.peerId) {
+            <div class="flex-shrink-0 w-24 h-full glass-card p-2 flex flex-col items-center justify-center">
+              <video 
+                [srcObject]="item.stream" 
+                autoplay 
+                class="w-full h-full object-cover rounded"
+              ></video>
+              <span class="text-xs mt-1 truncate w-full text-center" style="color: var(--color-text-secondary);">
+                Participant
+              </span>
+            </div>
+          }
+          
+          <!-- If no video, show participant names -->
+          @if (remoteStreams().length === 0 && !localStream) {
+            @for (participant of roomService.participants(); track participant.id) {
+              <div class="flex-shrink-0 w-24 h-full glass-card p-2 flex flex-col items-center justify-center">
+                <div class="w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center">
+                  <span class="text-sm font-bold" style="color: var(--color-text-primary);">
+                    {{ participant.displayName.charAt(0).toUpperCase() }}
+                  </span>
+                </div>
+                <span class="text-xs mt-1 truncate w-full text-center" style="color: var(--color-text-secondary);">
+                  {{ participant.displayName }}
+                </span>
+              </div>
+            }
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat Sidebar (Right Side) -->
+    @if (showChat()) {
+      <div class="w-80 glass-card m-4 flex flex-col overflow-hidden">
+        <!-- Chat Header -->
+        <div class="p-4 border-b" style="border-color: var(--color-glass-border);">
+          <h3 class="font-semibold" style="color: var(--color-text-primary);">Chat</h3>
+        </div>
+
+        <!-- Messages -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-3">
+          @for (message of roomService.messages(); track message.id) {
+            <div class="p-3 rounded-lg" 
+                 [class.bg-blue-50]="message.senderId === currentUserId()"
+                 style="background: var(--color-glass-bg);">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="text-xs font-medium" style="color: var(--color-primary);">
+                  {{ message.senderName }}
+                </span>
+                <span class="text-xs" style="color: var(--color-text-secondary);">
+                  {{ message.timestamp }}
+                </span>
+              </div>
+              <p class="text-sm" style="color: var(--color-text-primary);">{{ message.content }}</p>
+            </div>
+          }
+        </div>
+
+        <!-- Message Input -->
+        <div class="p-4 border-t" style="border-color: var(--color-glass-border);">
+          <div class="flex gap-2">
+            <input
+              type="text"
+              [ngModel]="messageText()"
+              (ngModelChange)="messageText.set($event)"
+              placeholder="Type a message..."
+              class="flex-1 px-3 py-2 rounded-lg border bg-transparent text-sm"
+              style="border-color: var(--color-glass-border); color: var(--color-text-primary);"
+              (keyup.enter)="sendMessage()"
+            />
+            <button
+              (click)="sendMessage()"
+              class="px-4 py-2 rounded-lg text-sm text-white"
+              style="background-color: var(--color-primary);"
+            >
+              Send
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- Controls Toolbar -->
+  <div class="glass-card rounded-none border-x-0 border-b-0">
+    <div class="flex items-center justify-center gap-4 p-4">
+      <!-- Mic Toggle -->
+      <button
+        (click)="toggleMic()"
+        class="p-3 rounded-full transition-all hover:opacity-90"
+        [class.bg-red-100]="!micOn()"
+        style="background: var(--color-glass-bg); color: var(--color-text-secondary);"
+        title="Toggle Microphone"
+      >
+        @if (micOn()) {
+          <span>🎤</span>
+        } @else {
+          <span>🔇</span>
+        }
+      </button>
+
+      <!-- Camera Toggle -->
+      <button
+        (click)="toggleCamera()"
+        class="p-3 rounded-full transition-all hover:opacity-90"
+        [class.bg-red-100]="!cameraOn()"
+        style="background: var(--color-glass-bg); color: var(--color-text-secondary);"
+        title="Toggle Camera"
+      >
+        @if (cameraOn()) {
+          <span>📹</span>
+        } @else {
+          <span>🚫</span>
+        }
+      </button>
+
+      <!-- Screen Share -->
+      <button
+        (click)="toggleScreenShare()"
+        class="p-3 rounded-full transition-all hover:opacity-90"
+        [class.bg-blue-100]="screenSharing()"
+        style="background: var(--color-glass-bg); color: var(--color-text-secondary);"
+        title="Toggle Screen Share"
+      >
+        <span>🖥️</span>
+      </button>
+
+      <!-- Recording -->
+      <button
+        (click)="toggleRecording()"
+        class="p-3 rounded-full transition-all hover:opacity-90 relative"
+        [class.bg-red-100]="recording()"
+        style="background: var(--color-glass-bg); color: var(--color-text-secondary);"
+        title="Toggle Recording"
+      >
+        <span>⏺️</span>
+        @if (recording()) {
+          <div class="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+        }
+      </button>
+
+      <!-- Chat Toggle -->
+      <button
+        (click)="showChat.update(v => !v)"
+        class="p-3 rounded-full transition-all hover:opacity-90 relative"
+        style="background: var(--color-glass-bg); color: var(--color-text-secondary);"
+        title="Toggle Chat"
+      >
+        <span>💬</span>
+        @if (roomService.messages().length > 0) {
+          <div class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center">
+            {{ roomService.messages().length }}
+          </div>
+        }
+      </button>
+
+      <!-- Participants Toggle -->
+      <button
+        (click)="showParticipants.update(v => !v)"
+        class="p-3 rounded-full transition-all hover:opacity-90 relative"
+        style="background: var(--color-glass-bg); color: var(--color-text-secondary);"
+        title="Participants"
+      >
+        <span>👥</span>
+        @if (roomService.participants().length > 0) {
+          <div class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-green-500 text-white text-xs flex items-center justify-center">
+            {{ roomService.participants().length }}
+          </div>
+        }
+      </button>
+
+      <!-- Media Player (Host Only) -->
+      @if (isHost()) {
+        <button
+          (click)="toggleMediaPlayer()"
+          class="p-3 rounded-full transition-all hover:opacity-90"
+          style="background: var(--color-glass-bg); color: var(--color-accent);"
+          title="Media Player"
+        >
+          <span>🎬</span>
+        </button>
+      }
+
+      <!-- Room Info (Host Only) -->
+      @if (isHost()) {
+        <button
+          (click)="showRoomInfo.update(v => !v)"
+          class="p-3 rounded-full transition-all hover:opacity-90"
+          style="background: var(--color-glass-bg); color: var(--color-text-secondary);"
+          title="Room Info"
+        >
+          <span>ℹ️</span>
+        </button>
+      }
+
+      <!-- Join Requests (Host Only) -->
+      @if (isHost()) {
+        <button
+          (click)="showJoinRequests.update(v => !v)"
+          class="p-3 rounded-full transition-all hover:opacity-90 relative"
+          style="background: var(--color-glass-bg); color: var(--color-text-secondary);"
+          title="Join Requests"
+        >
+          <span>📩</span>
+          @if (roomService.pendingRequests().length > 0) {
+            <div class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-yellow-500 text-white text-xs flex items-center justify-center">
+              {{ roomService.pendingRequests().length }}
+            </div>
+          }
+        </button>
+      }
+
+      <!-- Ban List (Host Only) -->
+      @if (isHost()) {
+        <button
+          (click)="showBanList.update(v => !v)"
+          class="p-3 rounded-full transition-all hover:opacity-90"
+          style="background: var(--color-glass-bg); color: var(--color-danger);"
+          title="Ban List"
+        >
+          <span>🚫</span>
+        </button>
+      }
+
+      <!-- Leave Button -->
+      <button
+        (click)="leaveRoom()"
+        class="px-6 py-3 rounded-full font-medium text-white transition-all hover:opacity-90 ml-4"
+        style="background-color: var(--color-danger);"
+        title="Leave Room"
+      >
+        Leave
+      </button>
+    </div>
+  </div>
+
+  <!-- Media Player Modal (Host Only) -->
+  @if (showMediaPlayer() && isHost()) {
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="glass-card p-6 w-full max-w-md animate__animated animate__zoomIn">
+        <h3 class="text-lg font-semibold mb-4" style="color: var(--color-text-primary);">Media Player</h3>
+        <input
+          type="text"
+          [(ngModel)]="mediaUrl"
+          placeholder="Enter media URL (audio/video)"
+          class="w-full px-4 py-3 rounded-lg border bg-transparent mb-4"
+          style="border-color: var(--color-glass-border); color: var(--color-text-primary);"
+        />
+        <div class="flex gap-2">
+          <button
+            (click)="loadMedia()"
+            class="flex-1 py-2 rounded-lg text-white font-medium"
+            style="background-color: var(--color-primary);"
+          >
+            Load Media
+          </button>
+          <button
+            (click)="showMediaPlayer.set(false)"
+            class="flex-1 py-2 rounded-lg font-medium border"
+            style="border-color: var(--color-glass-border); color: var(--color-text-secondary); background: transparent;"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Room Info Modal -->
+  @if (showRoomInfo()) {
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="glass-card p-6 w-full max-w-md animate__animated animate__zoomIn">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-semibold" style="color: var(--color-text-primary);">Room Info</h3>
+          <button (click)="showRoomInfo.set(false)" style="color: var(--color-text-secondary);">✕</button>
+        </div>
+        <div class="mb-4">
+          <label class="text-sm" style="color: var(--color-text-secondary);">Room ID</label>
+          <div class="flex gap-2 mt-1">
+            <input
+              [value]="roomId()"
+              readonly
+              class="flex-1 px-3 py-2 rounded-lg bg-transparent border"
+              style="border-color: var(--color-glass-border); color: var(--color-text-primary);"
+            />
+            <button
+              (click)="copyToClipboard(roomId())"
+              class="px-4 py-2 rounded-lg text-white text-sm"
+              style="background-color: var(--color-primary);"
+            >
+              Copy
+            </button>
+          </div>
+        </div>
+        <!-- QR Code would go here -->
+        <div class="text-center p-4" style="color: var(--color-text-secondary);">
+          QR Code Placeholder
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Join Requests Panel -->
+  @if (showJoinRequests() && isHost()) {
+    <div class="fixed right-0 top-0 h-full w-96 glass-card rounded-none z-50 p-6 overflow-y-auto">
+      <div class="flex justify-between items-center mb-6">
+        <h3 class="text-lg font-semibold" style="color: var(--color-text-primary);">Join Requests</h3>
+        <button (click)="showJoinRequests.set(false)" style="color: var(--color-text-secondary);">✕</button>
+      </div>
+      
+      @if (roomService.pendingRequests().length === 0) {
+        <p class="text-center py-8" style="color: var(--color-text-secondary);">No pending requests</p>
+      }
+
+      @for (request of roomService.pendingRequests(); track request.userId) {
+        <div class="glass-card p-4 mb-3">
+          <div class="flex justify-between items-center mb-2">
+            <span class="font-medium" style="color: var(--color-text-primary);">{{ request.displayName }}</span>
+            <span class="text-xs" style="color: var(--color-text-secondary);">{{ request.timestamp | date:'short' }}</span>
+          </div>
+          <div class="flex gap-2">
+            <button
+              (click)="approveRequest(request.userId)"
+              class="flex-1 py-2 rounded-lg text-white text-sm font-medium"
+              style="background-color: var(--color-success);"
+            >
+              Approve
+            </button>
+            <button
+              (click)="denyRequest(request.userId)"
+              class="flex-1 py-2 rounded-lg text-white text-sm font-medium"
+              style="background-color: var(--color-danger);"
+            >
+              Deny
+            </button>
+          </div>
+        </div>
+      }
+
+      @if (roomService.pendingRequests().length > 1) {
+        <div class="flex gap-2 mt-4">
+          <button
+            (click)="roomService.approveAll()"
+            class="flex-1 py-2 rounded-lg text-white text-sm font-medium"
+            style="background-color: var(--color-success);"
+          >
+            Approve All
+          </button>
+          <button
+            (click)="roomService.denyAll()"
+            class="flex-1 py-2 rounded-lg text-white text-sm font-medium"
+            style="background-color: var(--color-danger);"
+          >
+            Deny All
+          </button>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Ban List Panel -->
+  @if (showBanList()) {
+    <div class="fixed right-0 top-0 h-full w-96 glass-card rounded-none z-50 p-6 overflow-y-auto">
+      <div class="flex justify-between items-center mb-6">
+        <h3 class="text-lg font-semibold" style="color: var(--color-text-primary);">Ban List</h3>
+        <button (click)="showBanList.set(false)" style="color: var(--color-text-secondary);">✕</button>
+      </div>
+      
+      @if (roomService.banList().length === 0) {
+        <p class="text-center py-8" style="color: var(--color-text-secondary);">No banned users</p>
+      }
+
+      @for (userId of roomService.banList(); track userId) {
+        <div class="glass-card p-4 mb-3 flex justify-between items-center">
+          <span class="text-sm" style="color: var(--color-text-primary);">{{ userId | slice:0:8 }}...</span>
+          <button
+            (click)="unbanUser(userId)"
+            class="px-3 py-1 rounded text-sm"
+            style="background-color: var(--color-warning); color: white;"
+          >
+            Unban
+          </button>
+        </div>
+      }
+
+      @if (roomService.banList().length > 0) {
+        <button
+          (click)="unbanAll()"
+          class="w-full mt-4 py-2 rounded-lg text-white text-sm font-medium"
+          style="background-color: var(--color-warning);"
+        >
+          Unban All
+        </button>
+      }
+    </div>
+  }
+</div>

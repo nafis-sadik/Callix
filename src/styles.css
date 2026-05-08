@@ -1,0 +1,122 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+@import "tailwindcss";
+@plugin "@tailwindcss/forms";
+
+@theme {
+  --color-primary: #4F6AF0;
+  --color-primary-dark: #3B4FBF;
+  --color-accent: #6EC6CA;
+  --color-surface-light: #F4F6FB;
+  --color-surface-dark: #12151F;
+  --color-glass-bg-light: rgba(255, 255, 255, 0.55);
+  --color-glass-bg-dark: rgba(18, 21, 31, 0.55);
+  --color-glass-border-light: rgba(79, 106, 240, 0.18);
+  --color-glass-border-dark: rgba(110, 198, 202, 0.15);
+  --color-text-primary-light: #1A1D2E;
+  --color-text-primary-dark: #E8ECF4;
+  --color-text-secondary-light: #5A6072;
+  --color-text-secondary-dark: #8A94B0;
+  --color-success: #34C784;
+  --color-warning: #F5A623;
+  --color-danger: #E8445A;
+  
+  --font-sans: 'Inter', 'IBM Plex Sans', system-ui, sans-serif;
+  
+  --animate-fade-in: fadeIn 0.2s ease-in-out;
+  --animate-slide-up: slideUp 0.2s ease-out;
+  --animate-pulse-rec: pulseSoft 1.5s infinite;
+}
+
+/* ── Centralized CSS token system ─────────────────────────── */
+:root {
+  --color-primary:        #4F6AF0;
+  --color-primary-dark:   #3B4FBF;
+  --color-accent:         #6EC6CA;
+  --color-surface:        #F4F6FB;
+  --color-glass-bg:       rgba(255, 255, 255, 0.55);
+  --color-glass-border:   rgba(79, 106, 240, 0.18);
+  --color-text-primary:   #1A1D2E;
+  --color-text-secondary: #5A6072;
+  --color-success:        #34C784;
+  --color-warning:        #F5A623;
+  --color-danger:         #E8445A;
+  --gradient-bg: linear-gradient(135deg, #EEF1FB 0%, #F4F6FF 100%);
+}
+
+.dark {
+  --color-surface:        #12151F;
+  --color-glass-bg:       rgba(18, 21, 31, 0.55);
+  --color-glass-border:   rgba(110, 198, 202, 0.15);
+  --color-text-primary:   #E8ECF4;
+  --color-text-secondary: #8A94B0;
+  --gradient-bg: linear-gradient(135deg, #12151F 0%, #1A2035 100%);
+}
+
+/* ── Glassmorphism utility ────────────────────────────────── */
+.glass-card {
+  background: var(--color-glass-bg);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid var(--color-glass-border);
+  border-radius: 14px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+}
+
+/* ── Base styles ─────────────────────────────────────────── */
+html, body {
+  margin:0;
+  padding:0;
+  font-family: 'Inter', 'IBM Plex Sans', system-ui, sans-serif;
+  background: var(--gradient-bg);
+  color: var(--color-text-primary);
+  min-height: 100vh;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+body {
+  background-color: var(--color-surface);
+}
+
+/* ── Scrollbar styling ───────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-text-secondary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-primary);
+}
+
+/* ── SweetAlert2 theme overrides ─────────────────────────── */
+.swal2-popup {
+  background: var(--color-glass-bg) !important;
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid var(--color-glass-border);
+  color: var(--color-text-primary) !important;
+}
+
+.swal2-title {
+  color: var(--color-text-primary) !important;
+}
+
+.swal2-html-container {
+  color: var(--color-text-secondary) !important;
+}
+
+.swal2-confirm {
+  background-color: var(--color-primary) !important;
+}
+
+.swal2-cancel {
+  background-color: var(--color-text-secondary) !important;
+}

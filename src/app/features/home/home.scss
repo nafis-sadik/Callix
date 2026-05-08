@@ -1,0 +1,14 @@
+:host {
+  display: block;
+}
+
+input:focus, select:focus {
+  border-color: var(--color-primary) !important;
+}
+
+select {
+  option {
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+  }
+}
