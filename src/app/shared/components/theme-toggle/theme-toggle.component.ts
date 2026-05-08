@@ -1,9 +1,11 @@
 import { Component, inject } from '@angular/core';
 import { ThemeService } from '../../../core/services/theme.service';
+import { TooltipDirective } from '../../directives/tooltip.directive';
 
 @Component({
   selector: 'app-theme-toggle',
   standalone: true,
+  imports: [TooltipDirective],
   template: `
     <div class="flex items-center gap-2">
       <button
@@ -11,7 +13,7 @@ import { ThemeService } from '../../../core/services/theme.service';
         class="p-2 rounded-lg transition-all"
         [class.bg-blue-100]="themeService.isDark() === false && themeService.theme() !== 'system'"
         style="color: var(--color-text-secondary);"
-        title="Light Mode"
+        [appTooltip]="'Light mode'"
       >
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="5"/>
@@ -31,7 +33,7 @@ import { ThemeService } from '../../../core/services/theme.service';
         class="p-2 rounded-lg transition-all"
         [class.bg-gray-800]="themeService.isDark()"
         style="color: var(--color-text-secondary);"
-        title="Dark Mode"
+        [appTooltip]="'Dark mode'"
       >
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
@@ -43,7 +45,7 @@ import { ThemeService } from '../../../core/services/theme.service';
         class="p-2 rounded-lg transition-all"
         [class.bg-gray-100]="themeService.theme() === 'system'"
         style="color: var(--color-text-secondary);"
-        title="System Mode"
+        [appTooltip]="'System mode'"
       >
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>

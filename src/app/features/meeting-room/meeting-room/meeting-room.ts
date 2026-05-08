@@ -15,6 +15,7 @@ import { QrCodeModalComponent } from '../../../shared/components/qr-code-modal/q
 import { FileUploadComponent } from '../../../shared/components/file-upload/file-upload.component';
 import { TimeAgoPipe } from '../../../shared/pipes/time-ago.pipe';
 import { LucideAngularModule } from 'lucide-angular';
+import { TooltipDirective } from '../../../shared/directives/tooltip.directive';
 
 @Component({
   selector: 'app-meeting-room',
@@ -22,7 +23,7 @@ import { LucideAngularModule } from 'lucide-angular';
   imports: [
     CommonModule, FormsModule, SlicePipe,
     QrCodeModalComponent, FileUploadComponent,
-    TimeAgoPipe, LucideAngularModule
+    TimeAgoPipe, LucideAngularModule, TooltipDirective
   ],
   templateUrl: './meeting-room.html',
   styleUrl: './meeting-room.scss',

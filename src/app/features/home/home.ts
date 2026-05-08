@@ -8,11 +8,12 @@ import { PeerService } from '../../core/services/peer.service';
 import { EncryptionService } from '../../core/services/encryption.service';
 import { AlertService } from '../../core/services/alert.service';
 import { Room, EncryptionAlgorithm } from '../../core/models/room.model';
+import { TooltipDirective } from '../../shared/directives/tooltip.directive';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, FormsModule, SlicePipe],
+  imports: [CommonModule, FormsModule, SlicePipe, TooltipDirective],
   templateUrl: './home.html',
   styleUrl: './home.scss',
 })

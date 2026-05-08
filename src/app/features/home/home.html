@@ -23,7 +23,7 @@
           (click)="startMeeting()"
           class="px-8 py-3 rounded-lg font-medium text-white transition-all hover:opacity-90"
           style="background-color: var(--color-primary);"
-        >
+          [appTooltip]="'Create and start a meeting room'">
           Start Meeting
         </button>
       </div>
@@ -45,7 +45,7 @@
           (click)="joinRoom()"
           class="px-8 py-3 rounded-lg font-medium text-white transition-all hover:opacity-90"
           style="background-color: var(--color-primary);"
-        >
+          [appTooltip]="'Join a room by GUID'">
           Join Room
         </button>
       </div>
@@ -59,7 +59,7 @@
           (click)="toggleCreateChat()"
           class="px-4 py-2 rounded-lg font-medium text-white transition-all hover:opacity-90"
           style="background-color: var(--color-primary);"
-        >
+          [appTooltip]="'Create a new chat room'">
           + New Chat Room
         </button>
       </div>
@@ -87,14 +87,14 @@
               (click)="createChatRoom()"
               class="px-6 py-3 rounded-lg font-medium text-white transition-all hover:opacity-90"
               style="background-color: var(--color-primary);"
-            >
+              [appTooltip]="'Create chat room'">
               Create
             </button>
             <button
               (click)="toggleCreateChat()"
               class="px-6 py-3 rounded-lg font-medium transition-all hover:opacity-90 border"
               style="color: var(--color-text-secondary); border-color: var(--color-glass-border); background: transparent;"
-            >
+              [appTooltip]="'Cancel'">
               Cancel
             </button>
           </div>
@@ -117,7 +117,7 @@
                 (click)="leaveChatRoom(room.id)"
                 class="text-sm px-3 py-1 rounded transition-all hover:opacity-90"
                 style="color: var(--color-danger); background: transparent;"
-              >
+                [appTooltip]="'Leave this chat room'">
                 Leave
               </button>
             </div>

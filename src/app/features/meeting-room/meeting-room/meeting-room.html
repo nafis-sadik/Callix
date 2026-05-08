@@ -117,7 +117,8 @@
                   @if (fileTransferService.getFileById(message.id); as file) {
                     <button (click)="downloadFile(file)"
                       class="ml-2 px-2 py-1 text-xs rounded text-white"
-                      style="background-color: var(--color-primary);">
+                      style="background-color: var(--color-primary);"
+                      [appTooltip]="'Download file'">
                       Download
                     </button>
                   }
@@ -142,7 +143,7 @@
               @for (emoji of ['😊', '😂', '❤️', '👍', '🎉', '🔥', '👋', '😎']; track emoji) {
                 <button (click)="insertEmoji(emoji)"
                   class="text-sm hover:scale-110 transition-transform"
-                  title="{{ emoji }}">
+                  [appTooltip]="'Insert ' + emoji">
                   {{ emoji }}
                 </button>
               }
@@ -161,7 +162,7 @@
                 (click)="sendMessage()"
                 class="px-4 py-2 rounded-lg text-sm text-white"
                 style="background-color: var(--color-primary);"
-              >
+                [appTooltip]="'Send message'">
                 Send
               </button>
             </div>
@@ -179,8 +180,7 @@
         class="p-3 rounded-full transition-all hover:opacity-90"
         [class.bg-red-100]="!micOn()"
         style="background: var(--color-glass-bg); color: var(--color-text-secondary);"
-        title="Toggle Microphone"
-      >
+        [appTooltip]="'Toggle microphone'">
         @if (micOn()) {
           <lucide-angular name="mic" size="20" class="inline-block align-middle"></lucide-angular>
         } @else {
@@ -193,8 +193,7 @@
         class="p-3 rounded-full transition-all hover:opacity-90"
         [class.bg-red-100]="!cameraOn()"
         style="background: var(--color-glass-bg); color: var(--color-text-secondary);"
-        title="Toggle Camera"
-      >
+        [appTooltip]="'Toggle camera'">
         @if (cameraOn()) {
           <lucide-angular name="video" size="20" class="inline-block align-middle"></lucide-angular>
         } @else {
@@ -207,8 +206,7 @@
         class="p-3 rounded-full transition-all hover:opacity-90"
         [class.bg-blue-100]="screenSharing()"
         style="background: var(--color-glass-bg); color: var(--color-text-secondary);"
-        title="Toggle Screen Share"
-      >
+        [appTooltip]="'Toggle screen share'">
         <lucide-angular name="monitor" size="20" class="inline-block align-middle"></lucide-angular>
       </button>
 
@@ -217,8 +215,7 @@
         class="p-3 rounded-full transition-all hover:opacity-90 relative"
         [class.bg-red-100]="recording()"
         style="background: var(--color-glass-bg); color: var(--color-text-secondary);"
-        title="Toggle Recording"
-      >
+        [appTooltip]="'Toggle recording'">
         <lucide-angular name="circle" size="20" class="inline-block align-middle"></lucide-angular>
         @if (recording()) {
           <div class="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
@@ -229,8 +226,7 @@
         (click)="showChat.update(v => !v)"
         class="p-3 rounded-full transition-all hover:opacity-90 relative"
         style="background: var(--color-glass-bg); color: var(--color-text-secondary);"
-        title="Toggle Chat"
-      >
+        [appTooltip]="'Toggle chat'">
         <lucide-angular name="message-circle" size="20" class="inline-block align-middle"></lucide-angular>
         @if (roomService.messages().length > 0) {
           <div class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center">
@@ -243,8 +239,7 @@
         (click)="showParticipants.update(v => !v)"
         class="p-3 rounded-full transition-all hover:opacity-90 relative"
         style="background: var(--color-glass-bg); color: var(--color-text-secondary);"
-        title="Participants"
-      >
+        [appTooltip]="'Toggle participants panel'">
         <lucide-angular name="users" size="20" class="inline-block align-middle"></lucide-angular>
         @if (roomService.participants().length > 0) {
           <div class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-green-500 text-white text-xs flex items-center justify-center">
@@ -258,8 +253,7 @@
           (click)="toggleMediaPlayer()"
           class="p-3 rounded-full transition-all hover:opacity-90"
           style="background: var(--color-glass-bg); color: var(--color-accent);"
-          title="Media Player"
-        >
+          [appTooltip]="'Toggle media player'">
           <lucide-angular name="film" size="20" class="inline-block align-middle"></lucide-angular>
         </button>
       }
@@ -268,8 +262,7 @@
         (click)="showRoomInfo.update(v => !v)"
         class="p-3 rounded-full transition-all hover:opacity-90"
         style="background: var(--color-glass-bg); color: var(--color-text-secondary);"
-        title="Room Info"
-      >
+        [appTooltip]="'Room info and QR code'">
         <lucide-angular name="info" size="20" class="inline-block align-middle"></lucide-angular>
       </button>
 
@@ -278,8 +271,7 @@
           (click)="showJoinRequests.update(v => !v)"
           class="p-3 rounded-full transition-all hover:opacity-90 relative"
           style="background: var(--color-glass-bg); color: var(--color-text-secondary);"
-          title="Join Requests"
-        >
+          [appTooltip]="'Toggle join requests panel'">
           <lucide-angular name="user-plus" size="20" class="inline-block align-middle"></lucide-angular>
           @if (roomService.pendingRequests().length > 0) {
             <div class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-yellow-500 text-white text-xs flex items-center justify-center">
@@ -294,8 +286,7 @@
           (click)="showBanList.update(v => !v)"
           class="p-3 rounded-full transition-all hover:opacity-90"
           style="background: var(--color-glass-bg); color: var(--color-danger);"
-          title="Ban List"
-        >
+          [appTooltip]="'Toggle ban list'">
           <lucide-angular name="ban" size="20" class="inline-block align-middle"></lucide-angular>
         </button>
       }
@@ -304,8 +295,7 @@
         (click)="leaveRoom()"
         class="px-6 py-3 rounded-full font-medium text-white transition-all hover:opacity-90 ml-4"
         style="background-color: var(--color-danger);"
-        title="Leave Room"
-      >
+        [appTooltip]="'Leave room'">
         Leave
       </button>
     </div>
@@ -328,14 +318,14 @@
             (click)="loadMedia()"
             class="flex-1 py-2 rounded-lg text-white font-medium"
             style="background-color: var(--color-primary);"
-          >
+            [appTooltip]="'Load media URL'">
             Load Media
           </button>
           <button
             (click)="showMediaPlayer.set(false)"
             class="flex-1 py-2 rounded-lg font-medium border"
             style="border-color: var(--color-glass-border); color: var(--color-text-secondary); background: transparent;"
-          >
+            [appTooltip]="'Cancel'">
             Cancel
           </button>
         </div>
@@ -355,7 +345,7 @@
     <div class="fixed right-0 top-0 h-full w-80 glass-card rounded-none z-50 p-6 overflow-y-auto">
       <div class="flex justify-between items-center mb-6">
         <h3 class="text-lg font-semibold" style="color: var(--color-text-primary);">Participants ({{ roomService.participants().length }})</h3>
-        <button (click)="showParticipants.set(false)" style="color: var(--color-text-secondary);"><lucide-angular name="x" size="16" class="inline-block align-middle"></lucide-angular></button>
+        <button (click)="showParticipants.set(false)" style="color: var(--color-text-secondary);" [appTooltip]="'Close participants panel'"><lucide-angular name="x" size="16" class="inline-block align-middle"></lucide-angular></button>
       </div>
 
       @for (participant of roomService.participants(); track participant.id) {
@@ -380,8 +370,7 @@
                 (click)="kickParticipant(participant.id)"
                 class="text-xs px-2 py-1 rounded text-white"
                 style="background-color: var(--color-danger);"
-                title="Kick"
-              >
+                [appTooltip]="'Kick participant'">
                 Kick
               </button>
             }
@@ -396,7 +385,7 @@
     <div class="fixed right-0 top-0 h-full w-96 glass-card rounded-none z-50 p-6 overflow-y-auto">
       <div class="flex justify-between items-center mb-6">
         <h3 class="text-lg font-semibold" style="color: var(--color-text-primary);">Join Requests</h3>
-        <button (click)="showJoinRequests.set(false)" style="color: var(--color-text-secondary);"><lucide-angular name="x" size="16" class="inline-block align-middle"></lucide-angular></button>
+        <button (click)="showJoinRequests.set(false)" style="color: var(--color-text-secondary);" [appTooltip]="'Close join requests panel'"><lucide-angular name="x" size="16" class="inline-block align-middle"></lucide-angular></button>
       </div>
 
       @if (roomService.pendingRequests().length === 0) {
@@ -414,14 +403,14 @@
               (click)="approveRequest(request.userId)"
               class="flex-1 py-2 rounded-lg text-white text-sm font-medium"
               style="background-color: var(--color-success);"
-            >
+              [appTooltip]="'Approve request'">
               Approve
             </button>
             <button
               (click)="denyRequest(request.userId)"
               class="flex-1 py-2 rounded-lg text-white text-sm font-medium"
               style="background-color: var(--color-danger);"
-            >
+              [appTooltip]="'Deny request'">
               Deny
             </button>
           </div>
@@ -434,14 +423,14 @@
             (click)="roomService.approveAll()"
             class="flex-1 py-2 rounded-lg text-white text-sm font-medium"
             style="background-color: var(--color-success);"
-          >
+            [appTooltip]="'Approve all requests'">
             Approve All
           </button>
           <button
             (click)="roomService.denyAll()"
             class="flex-1 py-2 rounded-lg text-white text-sm font-medium"
             style="background-color: var(--color-danger);"
-          >
+            [appTooltip]="'Deny all requests'">
             Deny All
           </button>
         </div>
@@ -454,7 +443,7 @@
     <div class="fixed right-0 top-0 h-full w-96 glass-card rounded-none z-50 p-6 overflow-y-auto">
       <div class="flex justify-between items-center mb-6">
         <h3 class="text-lg font-semibold" style="color: var(--color-text-primary);">Ban List</h3>
-        <button (click)="showBanList.set(false)" style="color: var(--color-text-secondary);"><lucide-angular name="x" size="16" class="inline-block align-middle"></lucide-angular></button>
+        <button (click)="showBanList.set(false)" style="color: var(--color-text-secondary);" [appTooltip]="'Close ban list panel'"><lucide-angular name="x" size="16" class="inline-block align-middle"></lucide-angular></button>
       </div>
 
       @if (roomService.banList().length === 0) {
@@ -468,7 +457,7 @@
             (click)="unbanUser(userId)"
             class="px-3 py-1 rounded text-sm"
             style="background-color: var(--color-warning); color: white;"
-          >
+            [appTooltip]="'Unban user'">
             Unban
           </button>
         </div>
@@ -479,7 +468,7 @@
           (click)="unbanAll()"
           class="w-full mt-4 py-2 rounded-lg text-white text-sm font-medium"
           style="background-color: var(--color-warning);"
-        >
+          [appTooltip]="'Unban all users'">
           Unban All
         </button>
       }
