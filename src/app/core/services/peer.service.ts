@@ -27,6 +27,9 @@ export class PeerService {
   constructor(private encryptionService: EncryptionService) {}
 
   initializePeer(userId: string): void {
+    if (this.peer) {
+      this.destroy();
+    }
     this.peer = new Peer(userId, {
       config: {
         iceServers: [

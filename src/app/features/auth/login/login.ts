@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
+import { AlertService } from '../../../core/services/alert.service';
 
 @Component({
   selector: 'app-login',
@@ -13,6 +14,7 @@ import { AuthService } from '../../../core/services/auth.service';
 })
 export class LoginComponent {
   private authService = inject(AuthService);
+  private alertService = inject(AlertService);
   private router = inject(Router);
 
   displayName = '';
@@ -20,7 +22,7 @@ export class LoginComponent {
 
   loginWithGoogle(): void {
     if (!this.displayName.trim()) {
-      alert('Please enter a display name');
+      this.alertService.showError('Error', 'Please enter a display name');
       return;
     }
     

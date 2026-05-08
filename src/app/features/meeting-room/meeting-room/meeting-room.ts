@@ -7,14 +7,22 @@ import { PeerService } from '../../../core/services/peer.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { RecordingService } from '../../../core/services/recording.service';
 import { MediaSyncService } from '../../../core/services/media-sync.service';
+import { FileTransferService } from '../../../core/services/file-transfer.service';
 import { AlertService } from '../../../core/services/alert.service';
-import { User, Room } from '../../../core/models/room.model';
+import { User } from '../../../core/models/room.model';
 import { PeerMessage } from '../../../core/models/peer-message.model';
+import { QrCodeModalComponent } from '../../../shared/components/qr-code-modal/qr-code-modal.component';
+import { FileUploadComponent } from '../../../shared/components/file-upload/file-upload.component';
+import { TimeAgoPipe } from '../../../shared/pipes/time-ago.pipe';
 
 @Component({
   selector: 'app-meeting-room',
   standalone: true,
-  imports: [CommonModule, FormsModule, SlicePipe],
+  imports: [
+    CommonModule, FormsModule, SlicePipe,
+    QrCodeModalComponent, FileUploadComponent,
+    TimeAgoPipe
+  ],
   templateUrl: './meeting-room.html',
   styleUrl: './meeting-room.scss',
 })
@@ -26,6 +34,7 @@ export class MeetingRoomComponent implements OnInit {
   authService = inject(AuthService);
   recordingService = inject(RecordingService);
   mediaSyncService = inject(MediaSyncService);
+  fileTransferService = inject(FileTransferService);
   alertService = inject(AlertService);
 
   roomId = signal<string>('');
@@ -38,7 +47,9 @@ export class MeetingRoomComponent implements OnInit {
   showMediaPlayer = signal<boolean>(false);
   mediaUrl = signal<string>('');
   messageText = signal<string>('');
-  
+  activeSpeakerId = signal<string | null>(null);
+  pinnedParticipantId = signal<string | null>(null);
+
   micOn = signal<boolean>(true);
   cameraOn = signal<boolean>(true);
   screenSharing = signal<boolean>(false);
@@ -49,7 +60,6 @@ export class MeetingRoomComponent implements OnInit {
   remoteStreams = signal<{ peerId: string, stream: MediaStream }[]>([]);
 
   constructor() {
-    // Listen for remote streams
     this.peerService.onRemoteStream$.subscribe(({ peerId, stream }) => {
       const current = this.remoteStreams();
       const existing = current.findIndex(r => r.peerId === peerId);
@@ -61,7 +71,6 @@ export class MeetingRoomComponent implements OnInit {
       this.remoteStreams.set([...current]);
     });
 
-    // Listen for incoming calls
     this.peerService.onIncomingCall$.subscribe(({ peerId, call }) => {
       const stream = this.localStream || null;
       if (stream) {
@@ -77,8 +86,6 @@ export class MeetingRoomComponent implements OnInit {
   ngOnInit(): void {
     this.roomId.set(this.route.snapshot.paramMap.get('roomId') || '');
     this.isHost.set(this.roomService.isHost());
-    
-    // Initialize media
     this.initMedia();
   }
 
@@ -91,6 +98,23 @@ export class MeetingRoomComponent implements OnInit {
     } catch (err) {
       console.error('Failed to get media:', err);
     }
+  }
+
+  getBigScreenStream(): MediaStream | null {
+    const pinned = this.pinnedParticipantId();
+    if (pinned) {
+      const found = this.remoteStreams().find(r => r.peerId === pinned);
+      if (found) return found.stream;
+    }
+    const active = this.activeSpeakerId();
+    if (active) {
+      const found = this.remoteStreams().find(r => r.peerId === active);
+      if (found) return found.stream;
+    }
+    if (this.remoteStreams().length > 0) {
+      return this.remoteStreams()[0].stream;
+    }
+    return null;
   }
 
   toggleMic(): void {
@@ -126,8 +150,7 @@ export class MeetingRoomComponent implements OnInit {
         audio: true
       });
       this.screenSharing.set(true);
-      
-      // Broadcast screen share start
+
       const msg = {
         type: 'screen-share-start',
         payload: {},
@@ -146,8 +169,7 @@ export class MeetingRoomComponent implements OnInit {
       this.screenStream.getTracks().forEach(t => t.stop());
       this.screenStream = null;
       this.screenSharing.set(false);
-      
-      // Broadcast screen share stop
+
       const msg = {
         type: 'screen-share-stop',
         payload: {},
@@ -159,9 +181,9 @@ export class MeetingRoomComponent implements OnInit {
     }
   }
 
-  toggleRecording(): void {
+  async toggleRecording(): Promise<void> {
     if (this.recording()) {
-      const blob = this.recordingService.stopRecording();
+      const blob = await this.recordingService.stopRecording();
       if (blob) {
         this.recordingService.downloadRecording(blob);
       }
@@ -173,6 +195,10 @@ export class MeetingRoomComponent implements OnInit {
         this.recording.set(true);
       }
     }
+  }
+
+  pinParticipant(peerId: string): void {
+    this.pinnedParticipantId.update(v => v === peerId ? null : peerId);
   }
 
   toggleMediaPlayer(): void {
@@ -189,15 +215,44 @@ export class MeetingRoomComponent implements OnInit {
   sendMessage(): void {
     const text = this.messageText().trim();
     if (!text) return;
-    
     this.roomService.addMessage(text);
     this.messageText.set('');
   }
 
-  sendMessageOnEnter(event: Event): void {
-    if ((event as KeyboardEvent).key === 'Enter') {
+  sendMessageOnEnter(event: KeyboardEvent): void {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
       this.sendMessage();
     }
+  }
+
+  onFileSelected(file: File): void {
+    if (file.size > this.fileTransferService.LARGE_FILE_THRESHOLD) {
+      this.alertService.showLargeFileWarning(file.name, file.size).then(confirmed => {
+        if (confirmed) {
+          this.sendFile(file);
+        }
+      });
+    } else {
+      this.sendFile(file);
+    }
+  }
+
+  private async sendFile(file: File): Promise<void> {
+    const user = this.authService.currentUser();
+    if (!user) return;
+
+    const peers = this.roomService.participants()
+      .filter(p => p.id !== user.id)
+      .map(p => p.peerId);
+
+    if (peers.length > 0) {
+      await this.fileTransferService.sendFile(file, peers, user.id);
+    }
+  }
+
+  insertEmoji(emoji: string): void {
+    this.messageText.update(v => v + emoji);
   }
 
   leaveRoom(): void {
@@ -215,7 +270,6 @@ export class MeetingRoomComponent implements OnInit {
       this.screenStream.getTracks().forEach(t => t.stop());
       this.screenStream = null;
     }
-    // Clear remote streams
     this.remoteStreams.set([]);
   }
 
@@ -241,7 +295,23 @@ export class MeetingRoomComponent implements OnInit {
 
   copyToClipboard(text: string): void {
     navigator.clipboard.writeText(text).then(() => {
-      alert('Copied to clipboard!');
+      this.alertService.showSuccess('Copied!', 'Room ID copied to clipboard.');
     });
+  }
+
+  closeRoomInfo = () => {
+    this.showRoomInfo.set(false);
+  };
+
+  downloadFile(file: any): void {
+    if (file.data) {
+      const blob = new Blob([file.data], { type: file.mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.name;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
   }
 }

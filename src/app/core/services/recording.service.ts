@@ -18,24 +18,24 @@ export class RecordingService {
       }
     };
 
-    this.mediaRecorder.start(1000); // Collect data every second
+    this.mediaRecorder.start(1000);
     this.isRecording.set(true);
   }
 
-  stopRecording(): Blob | null {
-    if (!this.mediaRecorder) return null;
+  stopRecording(): Promise<Blob | null> {
+    if (!this.mediaRecorder) return Promise.resolve(null);
 
     return new Promise((resolve) => {
-      this.mediaRecorder!.onstop = () => {
+      const recorder = this.mediaRecorder!;
+      recorder.onstop = () => {
         const blob = new Blob(this.recordedChunks, { type: 'video/webm' });
         this.recordedChunks = [];
         resolve(blob);
       };
-
-      this.mediaRecorder!.stop();
+      recorder.stop();
       this.mediaRecorder = null;
       this.isRecording.set(false);
-    }) as any;
+    });
   }
 
   downloadRecording(blob: Blob, filename: string = 'recording.webm'): void {

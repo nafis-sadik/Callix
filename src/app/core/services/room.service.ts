@@ -1,7 +1,9 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, signal, inject } from '@angular/core';
 import { PeerService } from './peer.service';
 import { EncryptionService } from './encryption.service';
 import { AuthService } from './auth.service';
+import { FileTransferService } from './file-transfer.service';
+import { AlertService } from './alert.service';
 import { User, Room, RoomType, EncryptionAlgorithm, JoinRequest, Message, SharedFile, HistorySyncPayload } from '../models/room.model';
 import { PeerMessage, PeerMessageType } from '../models/peer-message.model';
 import { v4 as uuidv4 } from 'uuid';
@@ -16,19 +18,13 @@ export class RoomService {
   banList = signal<string[]>([]);
   isHost = signal<boolean>(false);
 
-  private peerService: PeerService;
-  private encryptionService: EncryptionService;
-  private authService: AuthService;
+  private peerService = inject(PeerService);
+  private encryptionService = inject(EncryptionService);
+  private authService = inject(AuthService);
+  private fileTransferService = inject(FileTransferService);
+  private alertService = inject(AlertService);
 
-  constructor(
-    peerService: PeerService,
-    encryptionService: EncryptionService,
-    authService: AuthService
-  ) {
-    this.peerService = peerService;
-    this.encryptionService = encryptionService;
-    this.authService = authService;
-    
+  constructor() {
     this.setupMessageListeners();
   }
 
@@ -52,7 +48,7 @@ export class RoomService {
   private handlePeerMessage(message: PeerMessage): void {
     switch (message.type) {
       case 'chat':
-        this.addMessage(message.payload);
+        this.addMessage(message.payload, 'text', true);
         break;
       case 'join-request':
         this.handleJoinRequest(message);
@@ -76,16 +72,19 @@ export class RoomService {
         this.handleRoomDestroyed();
         break;
       case 'file-meta':
-        this.handleFileMeta(message);
+        this.fileTransferService.handleFileMeta(message.payload);
         break;
       case 'file-chunk':
-        this.handleFileChunk(message);
+        this.fileTransferService.handleFileChunk(message.payload);
         break;
       case 'file-complete':
         this.handleFileComplete(message);
         break;
       case 'history-sync':
         this.handleHistorySync(message.payload);
+        break;
+      case 'key-exchange':
+        this.handleKeyExchange(message);
         break;
     }
   }
@@ -116,6 +115,16 @@ export class RoomService {
       isHost: true
     });
 
+    this.peerService.destroy();
+    this.peerService.initializePeer(roomId);
+
+    room.participants.set(user.id, {
+      id: user.id,
+      displayName: user.displayName,
+      peerId: roomId,
+      isHost: true
+    });
+
     this.currentRoom.set(room);
     this.isHost.set(true);
     this.updateParticipantsFromRoom(room);
@@ -126,7 +135,7 @@ export class RoomService {
   async joinRoom(roomId: string): Promise<void> {
     try {
       await this.peerService.connectToPeer(roomId);
-      
+
       const user = this.authService.currentUser();
       if (!user) throw new Error('User not authenticated');
 
@@ -162,9 +171,18 @@ export class RoomService {
     this.updatePendingRequests(room);
 
     const user = this.authService.currentUser();
-    const response = this.createPeerMessage('join-response', { approved: true, roomId: room.id }, user?.id || '');
+    const response = this.createPeerMessage('join-response', {
+      approved: true,
+      roomId: room.id,
+      roomName: room.name,
+      type: room.type,
+      encryptionAlgorithm: room.encryptionAlgorithm,
+      hostId: room.hostId,
+      createdAt: room.createdAt
+    }, user?.id || '');
 
     this.peerService.sendMessage(request.peerId, response);
+    this.initiateKeyExchange(request.peerId);
     this.sendHistorySync(request.peerId);
   }
 
@@ -188,7 +206,7 @@ export class RoomService {
   approveAll(): void {
     const room = this.currentRoom();
     if (!room) return;
-    
+
     const requests = Array.from(room.pendingRequests.keys());
     requests.forEach(id => this.approveRequest(id));
   }
@@ -196,7 +214,7 @@ export class RoomService {
   denyAll(): void {
     const room = this.currentRoom();
     if (!room) return;
-    
+
     const requests = Array.from(room.pendingRequests.keys());
     requests.forEach(id => this.denyRequest(id));
   }
@@ -209,11 +227,11 @@ export class RoomService {
     if (!participant) return;
 
     const user = this.authService.currentUser();
-      const kickMsg = this.createPeerMessage('kick', { userId }, user?.id || '');
+    const kickMsg = this.createPeerMessage('kick', { userId }, user?.id || '');
 
     this.peerService.sendMessage(participant.peerId, kickMsg);
     this.banUser(userId);
-    
+
     room.participants.delete(userId);
     this.updateParticipantsFromRoom(room);
     this.currentRoom.set(room);
@@ -263,6 +281,11 @@ export class RoomService {
       }
     }
 
+    this.resetRoom();
+    this.encryptionService.clearKeys();
+  }
+
+  private resetRoom(): void {
     this.currentRoom.set(null);
     this.participants.set([]);
     this.messages.set([]);
@@ -270,21 +293,22 @@ export class RoomService {
     this.pendingRequests.set([]);
     this.banList.set([]);
     this.isHost.set(false);
-    this.encryptionService.clearKeys();
   }
 
-  addMessage(content: string, type: 'text' | 'file' | 'system' = 'text'): void {
+  addMessage(content: string | Message, type: 'text' | 'file' | 'system' = 'text', fromPeer = false): void {
     const user = this.authService.currentUser();
     if (!user) return;
 
-    const message: Message = {
-      id: uuidv4(),
-      senderId: user.id,
-      senderName: user.displayName,
-      content,
-      timestamp: Date.now(),
-      type
-    };
+    const message: Message = typeof content === 'string'
+      ? {
+          id: uuidv4(),
+          senderId: user.id,
+          senderName: user.displayName,
+          content,
+          timestamp: Date.now(),
+          type
+        }
+      : content;
 
     const room = this.currentRoom();
     if (room) {
@@ -293,9 +317,37 @@ export class RoomService {
       this.currentRoom.set(room);
     }
 
-    if (type !== 'system') {
+    if (!fromPeer && type !== 'system') {
       const msg = this.createPeerMessage('chat', message, user.id);
+      this.peerService.broadcastMessage(msg);
+    }
+  }
 
+  addFileMessage(file: SharedFile): void {
+    const participants = this.participants();
+    const sender = participants.find(p => p.id === file.senderId);
+
+    const message: Message = {
+      id: file.id,
+      senderId: file.senderId,
+      senderName: sender?.displayName || 'Unknown',
+      content: `[File] ${file.name} (${(file.size / 1024).toFixed(1)} KB)`,
+      timestamp: file.timestamp,
+      type: 'file'
+    };
+
+    const room = this.currentRoom();
+    if (room) {
+      room.messages.push(message);
+      room.sharedFiles.push(file);
+      this.messages.set([...room.messages]);
+      this.sharedFiles.set([...room.sharedFiles]);
+      this.currentRoom.set(room);
+    }
+
+    const user = this.authService.currentUser();
+    if (user && file.senderId === user.id) {
+      const msg = this.createPeerMessage('chat', message, user.id);
       this.peerService.broadcastMessage(msg);
     }
   }
@@ -307,7 +359,7 @@ export class RoomService {
     if (!room) return;
 
     const payload = message.payload;
-    
+
     if (room.banList.has(payload.userId)) {
       const user = this.authService.currentUser();
       const response = this.createPeerMessage('join-response', { approved: false, reason: 'banned' }, user?.id || '');
@@ -329,11 +381,83 @@ export class RoomService {
 
   private handleJoinResponse(message: PeerMessage): void {
     const payload = message.payload;
-    if (payload.approved) {
-      this.addMessage('You have joined the room', 'system');
-    } else {
-      console.log('Join request denied');
+    if (!payload.approved) return;
+
+    const user = this.authService.currentUser();
+    if (!user) return;
+
+    const room: Room = {
+      id: payload.roomId,
+      type: payload.type || 'meeting',
+      name: payload.roomName || 'Room',
+      hostId: payload.hostId || message.senderId,
+      encryptionAlgorithm: payload.encryptionAlgorithm || 'AES-GCM-256',
+      participants: new Map(),
+      banList: new Set(),
+      pendingRequests: new Map(),
+      messages: [],
+      sharedFiles: [],
+      createdAt: payload.createdAt || Date.now()
+    };
+
+    room.participants.set(user.id, {
+      id: user.id,
+      displayName: user.displayName,
+      peerId: this.peerService.peerId || user.peerId,
+      isHost: false
+    });
+
+    this.currentRoom.set(room);
+    this.isHost.set(false);
+    this.updateParticipantsFromRoom(room);
+    this.addMessage('You have joined the room', 'system');
+  }
+
+  private handleKicked(message: PeerMessage): void {
+    this.alertService.showKicked('You have been removed from the room.');
+    this.resetRoom();
+    this.encryptionService.clearKeys();
+  }
+
+  private handleRoomDestroyed(): void {
+    this.alertService.showRoomDestroyed();
+    this.resetRoom();
+    this.encryptionService.clearKeys();
+    this.peerService.destroy();
+  }
+
+  private handleFileComplete(message: PeerMessage): void {
+    this.fileTransferService.handleFileComplete(message.payload);
+    const file = this.fileTransferService.getFileById(message.payload.fileId);
+    if (file) {
+      this.addFileMessage(file);
     }
+  }
+
+  private handleKeyExchange(message: PeerMessage): void {
+    const { publicKey } = message.payload;
+    if (!publicKey) return;
+
+    this.encryptionService.importPublicKey(publicKey).then(async (importedKey) => {
+      await this.encryptionService.deriveSharedSecret(importedKey);
+      const roomKey = await this.encryptionService.generateRoomKey('AES-GCM-256');
+      this.encryptionService.setRoomKey(roomKey);
+    }).catch(err => {
+      console.error('Key exchange failed:', err);
+    });
+  }
+
+  private initiateKeyExchange(peerId: string): void {
+    this.encryptionService.generateKeyPair().then(async () => {
+      const publicKey = await this.encryptionService.exportPublicKey();
+      const msg = this.createPeerMessage('key-exchange', { peerId, publicKey }, this.authService.currentUser()?.id || '');
+      this.peerService.sendMessage(peerId, msg);
+
+      const roomKey = await this.encryptionService.generateRoomKey('AES-GCM-256');
+      this.encryptionService.setRoomKey(roomKey);
+    }).catch(err => {
+      console.error('Failed to initiate key exchange:', err);
+    });
   }
 
   private sendHistorySync(peerId: string): void {
@@ -354,23 +478,22 @@ export class RoomService {
     };
 
     const msg = this.createPeerMessage('history-sync', syncPayload, this.authService.currentUser()?.id || '');
-
     this.peerService.sendMessage(peerId, msg);
   }
 
   private handleHistorySync(payload: HistorySyncPayload): void {
     this.messages.set(payload.messages);
     this.participants.set(payload.participants);
-  }
 
-  private handleKicked(message: PeerMessage): void {
-    alert('You have been kicked from the meeting');
-    this.leaveRoom();
-  }
-
-  private handleRoomDestroyed(): void {
-    alert('The meeting room has been closed by the host');
-    this.leaveRoom();
+    const room = this.currentRoom();
+    if (room) {
+      payload.participants.forEach(p => {
+        if (!room.participants.has(p.id)) {
+          room.participants.set(p.id, p);
+        }
+      });
+      this.currentRoom.set(room);
+    }
   }
 
   private addToBanList(userId: string): void {
@@ -385,18 +508,6 @@ export class RoomService {
     if (!room) return;
     room.banList.delete(userId);
     this.banList.set(Array.from(room.banList));
-  }
-
-  private handleFileMeta(message: PeerMessage): void {
-    // Handle file metadata
-  }
-
-  private handleFileChunk(message: PeerMessage): void {
-    // Handle file chunk
-  }
-
-  private handleFileComplete(message: PeerMessage): void {
-    // Handle file complete
   }
 
   private updateParticipantsFromRoom(room: Room): void {

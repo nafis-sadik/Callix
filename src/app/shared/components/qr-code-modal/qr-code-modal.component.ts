@@ -1,6 +1,7 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { QRCodeComponent } from 'angularx-qrcode';
+import { AlertService } from '../../../core/services/alert.service';
 
 @Component({
   selector: 'app-qr-code-modal',
@@ -51,13 +52,14 @@ import { QRCodeComponent } from 'angularx-qrcode';
   `
 })
 export class QrCodeModalComponent {
+  private alertService = inject(AlertService);
   @Input() roomId = '';
   @Input() show = false;
   @Input() close = () => {};
 
   copyToClipboard(): void {
     navigator.clipboard.writeText(this.roomId);
-    alert('Room ID copied to clipboard!');
+    this.alertService.showSuccess('Copied!', 'Room ID copied to clipboard.');
   }
 
   downloadQR(): void {

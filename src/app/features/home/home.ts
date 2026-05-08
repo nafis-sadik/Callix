@@ -6,7 +6,8 @@ import { RoomService } from '../../core/services/room.service';
 import { AuthService } from '../../core/services/auth.service';
 import { PeerService } from '../../core/services/peer.service';
 import { EncryptionService } from '../../core/services/encryption.service';
-import { Room, RoomType, EncryptionAlgorithm } from '../../core/models/room.model';
+import { AlertService } from '../../core/services/alert.service';
+import { Room, EncryptionAlgorithm } from '../../core/models/room.model';
 
 @Component({
   selector: 'app-home',
@@ -20,49 +21,47 @@ export class HomeComponent {
   private authService = inject(AuthService);
   private peerService = inject(PeerService);
   private encryptionService = inject(EncryptionService);
+  private alertService = inject(AlertService);
   private router = inject(Router);
 
-  // Join room
   joinGuid = '';
-  
-  // Create room
   newRoomName = '';
   encryptionAlgo: EncryptionAlgorithm = 'AES-GCM-256';
-  
-  // Chat rooms
   chatRooms = signal<Room[]>([]);
   showCreateChat = signal<boolean>(false);
 
   ngOnInit(): void {
-    // Initialize peer connection
     const user = this.authService.currentUser();
     if (user) {
+      if (this.peerService.peerId && this.peerService.peerId !== user.id) {
+        this.peerService.destroy();
+      }
       this.peerService.initializePeer(user.id);
     }
   }
 
   startMeeting(): void {
     if (!this.newRoomName.trim()) {
-      alert('Please enter a room name');
+      this.alertService.showError('Error', 'Please enter a room name');
       return;
     }
 
     const room = this.roomService.createRoom('meeting', this.newRoomName);
     this.encryptionService.generateRoomKey(room.encryptionAlgorithm);
-    
+
     this.router.navigate(['/meeting', room.id]);
   }
 
   joinRoom(): void {
     if (!this.joinGuid.trim()) {
-      alert('Please enter a room GUID');
+      this.alertService.showError('Error', 'Please enter a room GUID');
       return;
     }
 
     this.roomService.joinRoom(this.joinGuid).then(() => {
       this.router.navigate(['/meeting', this.joinGuid]);
     }).catch(err => {
-      alert('Failed to join room: ' + err);
+      this.alertService.showError('Failed to join room', String(err));
     });
   }
 
@@ -72,7 +71,7 @@ export class HomeComponent {
 
   createChatRoom(): void {
     if (!this.newRoomName.trim()) {
-      alert('Please enter a room name');
+      this.alertService.showError('Error', 'Please enter a room name');
       return;
     }
 
@@ -80,7 +79,7 @@ export class HomeComponent {
     const rooms = this.chatRooms();
     rooms.push(room);
     this.chatRooms.set([...rooms]);
-    
+
     this.newRoomName = '';
     this.showCreateChat.set(false);
   }
