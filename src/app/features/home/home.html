@@ -1,131 +1,80 @@
 <div class="min-h-screen bg-[var(--gradient-bg)] p-4 sm:p-8">
-  <div class="max-w-7xl mx-auto">
-    
-    <!-- Start Meeting Section -->
-    <div class="glass-card p-6 mb-8 animate__animated animate__fadeIn">
+  <div class="max-w-7xl mx-auto flex flex-col gap-6">
+
+    <!-- Start Meeting -->
+    <div class="glass-card p-6">
       <h2 class="text-2xl font-semibold mb-4" style="color: var(--color-text-primary);">Start a Meeting</h2>
       <div class="flex flex-col sm:flex-row gap-4">
-        <input
-          type="text"
-          [(ngModel)]="newRoomName"
-          placeholder="Meeting name"
-          class="flex-1 px-4 py-3 rounded-lg border bg-transparent focus:outline-none focus:ring-2"
-          style="border-color: var(--color-glass-border); color: var(--color-text-primary);"
-        />
-        <select
+        <input pInputText type="text" [(ngModel)]="newRoomName" placeholder="Meeting name" class="flex-1" />
+        <p-select
+          [options]="encryptionOptions"
           [(ngModel)]="encryptionAlgo"
-          class="px-4 py-3 rounded-lg border bg-transparent focus:outline-none"
-          style="border-color: var(--color-glass-border); color: var(--color-text-primary);"
-        >
-              <option *ngFor="let opt of getEncryptionOptions()" [value]="opt.value">{{ opt.label }}</option>
-        </select>
-        <button
-          (click)="startMeeting()"
-          class="px-8 py-3 rounded-lg font-medium text-white transition-all hover:opacity-90"
-          style="background-color: var(--color-primary);"
-          [appTooltip]="'Create and start a meeting room'">
-          Start Meeting
-        </button>
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Encryption"
+          styleClass="min-w-52"
+        />
+        <p-button label="Start Meeting" (onClick)="startMeeting()" />
       </div>
     </div>
 
-    <!-- Join a Room Section -->
-    <div class="glass-card p-6 mb-8 animate__animated animate__fadeIn">
+    <!-- Join Room -->
+    <div class="glass-card p-6">
       <h2 class="text-2xl font-semibold mb-4" style="color: var(--color-text-primary);">Join a Room</h2>
       <div class="flex flex-col sm:flex-row gap-4">
-        <input
-          type="text"
-          [(ngModel)]="joinGuid"
-          placeholder="Enter room GUID"
-          class="flex-1 px-4 py-3 rounded-lg border bg-transparent focus:outline-none focus:ring-2"
-          style="border-color: var(--color-glass-border); color: var(--color-text-primary);"
-          (keyup.enter)="joinRoom()"
-        />
-        <button
-          (click)="joinRoom()"
-          class="px-8 py-3 rounded-lg font-medium text-white transition-all hover:opacity-90"
-          style="background-color: var(--color-primary);"
-          [appTooltip]="'Join a room by GUID'">
-          Join Room
-        </button>
+        <input pInputText type="text" [(ngModel)]="joinGuid" placeholder="Enter room GUID" class="flex-1"
+          (keyup.enter)="joinRoom()" />
+        <p-button label="Join Room" (onClick)="joinRoom()" />
       </div>
     </div>
 
-    <!-- My Chat Rooms Section -->
-    <div class="mb-8">
+    <!-- My Chat Rooms -->
+    <div>
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-2xl font-semibold" style="color: var(--color-text-primary);">My Chat Rooms</h2>
-        <button
-          (click)="toggleCreateChat()"
-          class="px-4 py-2 rounded-lg font-medium text-white transition-all hover:opacity-90"
-          style="background-color: var(--color-primary);"
-          [appTooltip]="'Create a new chat room'">
-          + New Chat Room
-        </button>
+        <p-button
+          [label]="showCreateChat() ? 'Cancel' : '+ New Chat Room'"
+          (onClick)="toggleCreateChat()"
+          severity="secondary"
+        />
       </div>
 
-      <!-- Create Chat Room Form -->
       @if (showCreateChat()) {
-        <div class="glass-card p-6 mb-4 animate__animated animate__zoomIn">
+        <div class="glass-card p-6 mb-4">
           <div class="flex flex-col sm:flex-row gap-4">
-            <input
-              type="text"
-              [(ngModel)]="newRoomName"
-              placeholder="Chat room name"
-              class="flex-1 px-4 py-3 rounded-lg border bg-transparent focus:outline-none focus:ring-2"
-              style="border-color: var(--color-glass-border); color: var(--color-text-primary);"
-              (keyup.enter)="createChatRoom()"
-            />
-            <select
+            <input pInputText type="text" [(ngModel)]="newRoomName" placeholder="Chat room name" class="flex-1"
+              (keyup.enter)="createChatRoom()" />
+            <p-select
+              [options]="encryptionOptions"
               [(ngModel)]="encryptionAlgo"
-              class="px-4 py-3 rounded-lg border bg-transparent focus:outline-none"
-              style="border-color: var(--color-glass-border); color: var(--color-text-primary);"
-            >
-          <option *ngFor="let opt of getEncryptionOptions()" [value]="opt.value">{{ opt.label }}</option>
-            </select>
-            <button
-              (click)="createChatRoom()"
-              class="px-6 py-3 rounded-lg font-medium text-white transition-all hover:opacity-90"
-              style="background-color: var(--color-primary);"
-              [appTooltip]="'Create chat room'">
-              Create
-            </button>
-            <button
-              (click)="toggleCreateChat()"
-              class="px-6 py-3 rounded-lg font-medium transition-all hover:opacity-90 border"
-              style="color: var(--color-text-secondary); border-color: var(--color-glass-border); background: transparent;"
-              [appTooltip]="'Cancel'">
-              Cancel
-            </button>
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Encryption"
+              styleClass="min-w-52"
+            />
+            <p-button label="Create" (onClick)="createChatRoom()" />
           </div>
         </div>
       }
 
-      <!-- Chat Room Cards -->
       @if (chatRooms().length === 0) {
-        <div class="glass-card p-8 text-center" style="color: var(--color-text-secondary);">
+        <div class="glass-card p-8 text-center text-muted-color">
           No active chat rooms. Create one to get started!
         </div>
       }
 
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         @for (room of chatRooms(); track room.id) {
-          <div class="glass-card p-6 animate__animated animate__fadeIn">
+          <div class="glass-card p-6">
             <div class="flex items-center justify-between mb-3">
               <h3 class="font-semibold text-lg" style="color: var(--color-text-primary);">{{ room.name }}</h3>
-              <button
-                (click)="leaveChatRoom(room.id)"
-                class="text-sm px-3 py-1 rounded transition-all hover:opacity-90"
-                style="color: var(--color-danger); background: transparent;"
-                [appTooltip]="'Leave this chat room'">
-                Leave
-              </button>
+              <p-button label="Leave" severity="danger" [text]="true" size="small" (onClick)="leaveChatRoom(room.id)" />
             </div>
-            <div class="flex items-center gap-2 text-sm mb-2" style="color: var(--color-text-secondary);">
+            <div class="flex items-center gap-2 text-sm mb-2 text-muted-color">
               <span>ID: {{ room.id | slice:0:8 }}...</span>
-              <span class="px-2 py-1 rounded text-xs" style="background: var(--color-accent); color: white;">Host</span>
+              <p-tag value="Host" severity="info" />
             </div>
-            <p class="text-sm" style="color: var(--color-text-secondary);">
+            <p class="text-sm text-muted-color">
               {{ room.participants.size }} participant(s) • {{ room.messages.length }} message(s)
             </p>
           </div>

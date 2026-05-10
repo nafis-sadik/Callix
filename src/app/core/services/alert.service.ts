@@ -1,90 +1,64 @@
-import { Injectable } from '@angular/core';
-import Swal from 'sweetalert2';
+import { Injectable, inject } from '@angular/core';
+import { MessageService } from 'primeng/api';
+import { ConfirmationService } from 'primeng/api';
 
 @Injectable({ providedIn: 'root' })
 export class AlertService {
-  async showSuccess(title: string, text?: string): Promise<void> {
-    await Swal.fire({
-      icon: 'success',
-      title,
-      text,
-      background: 'var(--color-glass-bg)',
-      color: 'var(--color-text-primary)',
-      confirmButtonColor: 'var(--color-primary)',
-      backdrop: 'rgba(0,0,0,0.5)',
-      timer: 3000,
-      timerProgressBar: true
+  private messageService = inject(MessageService);
+  private confirmationService = inject(ConfirmationService);
+
+  showSuccess(title: string, text?: string): void {
+    this.messageService.add({ severity: 'success', summary: title, detail: text, life: 3000 });
+  }
+
+  showError(title: string, text?: string): void {
+    this.messageService.add({ severity: 'error', summary: title, detail: text, life: 5000 });
+  }
+
+  showConfirm(title: string, text?: string): Promise<boolean> {
+    return new Promise((resolve) => {
+      this.confirmationService.confirm({
+        header: title,
+        message: text,
+        accept: () => resolve(true),
+        reject: () => resolve(false)
+      });
     });
   }
 
-  async showError(title: string, text?: string): Promise<void> {
-    await Swal.fire({
-      icon: 'error',
-      title,
-      text,
-      background: 'var(--color-glass-bg)',
-      color: 'var(--color-text-primary)',
-      confirmButtonColor: 'var(--color-primary)',
-      backdrop: 'rgba(0,0,0,0.5)'
+  showKicked(message: string): Promise<void> {
+    return new Promise((resolve) => {
+      this.confirmationService.confirm({
+        header: 'Removed from Meeting',
+        message,
+        rejectVisible: false,
+        accept: () => resolve()
+      });
     });
   }
 
-  async showConfirm(title: string, text?: string): Promise<boolean> {
-    const result = await Swal.fire({
-      icon: 'question',
-      title,
-      text,
-      showCancelButton: true,
-      confirmButtonColor: 'var(--color-primary)',
-      cancelButtonColor: 'var(--color-text-secondary)',
-      background: 'var(--color-glass-bg)',
-      color: 'var(--color-text-primary)',
-      backdrop: 'rgba(0,0,0,0.5)'
-    });
-    return result.isConfirmed;
-  }
-
-  async showKicked(message: string): Promise<void> {
-    await Swal.fire({
-      icon: 'warning',
-      title: 'Removed from Meeting',
-      text: message,
-      background: 'var(--color-glass-bg)',
-      color: 'var(--color-text-primary)',
-      confirmButtonColor: 'var(--color-danger)',
-      backdrop: 'rgba(0,0,0,0.5)',
-      allowOutsideClick: false
+  showRoomDestroyed(): Promise<void> {
+    return new Promise((resolve) => {
+      this.confirmationService.confirm({
+        header: 'Meeting Ended',
+        message: 'The host has ended the meeting.',
+        rejectVisible: false,
+        accept: () => resolve()
+      });
     });
   }
 
-  async showRoomDestroyed(): Promise<void> {
-    await Swal.fire({
-      icon: 'info',
-      title: 'Meeting Ended',
-      text: 'The host has ended the meeting.',
-      background: 'var(--color-glass-bg)',
-      color: 'var(--color-text-primary)',
-      confirmButtonColor: 'var(--color-primary)',
-      backdrop: 'rgba(0,0,0,0.5)',
-      allowOutsideClick: false
-    });
-  }
-
-  async showLargeFileWarning(fileName: string, fileSize: number): Promise<boolean> {
+  showLargeFileWarning(fileName: string, fileSize: number): Promise<boolean> {
     const sizeMB = (fileSize / (1024 * 1024)).toFixed(2);
-    const result = await Swal.fire({
-      icon: 'warning',
-      title: 'Large File',
-      text: `${fileName} is ${sizeMB}MB. Large files may take time to transfer over P2P. Continue?`,
-      showCancelButton: true,
-      confirmButtonText: 'Proceed',
-      cancelButtonText: 'Cancel',
-      confirmButtonColor: 'var(--color-warning)',
-      cancelButtonColor: 'var(--color-text-secondary)',
-      background: 'var(--color-glass-bg)',
-      color: 'var(--color-text-primary)',
-      backdrop: 'rgba(0,0,0,0.5)'
+    return new Promise((resolve) => {
+      this.confirmationService.confirm({
+        header: 'Large File',
+        message: `${fileName} is ${sizeMB}MB. Large files may take time to transfer over P2P. Continue?`,
+        acceptLabel: 'Proceed',
+        rejectLabel: 'Cancel',
+        accept: () => resolve(true),
+        reject: () => resolve(false)
+      });
     });
-    return result.isConfirmed;
   }
 }

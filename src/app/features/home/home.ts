@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, OnInit } from '@angular/core';
 import { CommonModule, SlicePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -8,16 +8,20 @@ import { PeerService } from '../../core/services/peer.service';
 import { EncryptionService } from '../../core/services/encryption.service';
 import { AlertService } from '../../core/services/alert.service';
 import { Room, EncryptionAlgorithm } from '../../core/models/room.model';
-import { TooltipDirective } from '../../shared/directives/tooltip.directive';
+import { InputTextModule } from 'primeng/inputtext';
+import { ButtonModule } from 'primeng/button';
+import { SelectModule } from 'primeng/select';
+import { TooltipModule } from 'primeng/tooltip';
+import { TagModule } from 'primeng/tag';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, FormsModule, SlicePipe, TooltipDirective],
+  imports: [CommonModule, FormsModule, SlicePipe, InputTextModule, ButtonModule, SelectModule, TooltipModule, TagModule],
   templateUrl: './home.html',
   styleUrl: './home.scss',
 })
-export class HomeComponent {
+export class HomeComponent implements OnInit {
   private roomService = inject(RoomService);
   private authService = inject(AuthService);
   private peerService = inject(PeerService);
@@ -93,12 +97,10 @@ export class HomeComponent {
     this.chatRooms.set(rooms);
   }
 
-  getEncryptionOptions(): { value: EncryptionAlgorithm; label: string }[] {
-    return [
-      { value: 'AES-GCM-256', label: 'AES-GCM-256 (Encrypted)' },
-      { value: 'AES-CBC-256', label: 'AES-CBC-256 (Encrypted)' },
-      { value: 'ChaCha20-Poly1305', label: 'ChaCha20-Poly1305 (Encrypted)' },
-      { value: 'none', label: 'None (No Encryption)' }
-    ];
-  }
+  encryptionOptions: { value: EncryptionAlgorithm; label: string }[] = [
+    { value: 'AES-GCM-256', label: 'AES-GCM-256 (Encrypted)' },
+    { value: 'AES-CBC-256', label: 'AES-CBC-256 (Encrypted)' },
+    { value: 'ChaCha20-Poly1305', label: 'ChaCha20-Poly1305 (Encrypted)' },
+    { value: 'none', label: 'None (No Encryption)' }
+  ];
 }

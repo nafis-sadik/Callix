@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@plugin "@tailwindcss/forms";
 
 @theme {
   --color-primary: #4F6AF0;
@@ -22,7 +21,6 @@
   --animate-pulse-rec: pulseSoft 1.5s infinite;
 }
 
-/* ── Centralized CSS token system ─────────────────────────── */
 :root {
   --color-primary:        #4F6AF0;
   --color-primary-dark:   #3B4FBF;
@@ -47,7 +45,6 @@
   --gradient-bg: linear-gradient(135deg, #111111 0%, #1C1C26 100%);
 }
 
-/* ── Glassmorphism utility ────────────────────────────────── */
 .glass-card {
   background: var(--color-glass-bg);
   backdrop-filter: blur(16px) saturate(180%);
@@ -57,74 +54,25 @@
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
 }
 
-/* ── Button defaults ─────────────────────────────────────── */
-button:not(:disabled) {
-  cursor: pointer;
-}
+button:not(:disabled) { cursor: pointer; }
+button:hover:not(:disabled) { filter: brightness(0.88); }
+.dark button:hover:not(:disabled) { filter: brightness(1.18); }
 
-button:hover:not(:disabled) {
-  filter: brightness(0.88);
-}
-
-.dark button:hover:not(:disabled) {
-  filter: brightness(1.18);
-}
-
-/* ── Base styles ─────────────────────────────────────────── */
 html, body {
-  margin:0;
-  padding:0;
+  margin:0; padding:0;
   font-family: 'Inter', 'IBM Plex Sans', system-ui, sans-serif;
   background: var(--gradient-bg);
   color: var(--color-text-primary);
   min-height: 100vh;
   transition: background 0.15s ease, color 0.15s ease;
 }
+body { background-color: var(--color-surface); }
 
-body {
-  background-color: var(--color-surface);
-}
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-text-secondary); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-text-primary); }
 
-/* ── Scrollbar styling ───────────────────────────────────── */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--color-text-secondary);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-text-primary);
-}
-
-/* ── SweetAlert2 theme overrides ─────────────────────────── */
-.swal2-popup {
-  background: var(--color-glass-bg) !important;
-  backdrop-filter: blur(16px) saturate(180%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
-  border: 1px solid var(--color-glass-border);
-  color: var(--color-text-primary) !important;
-}
-
-.swal2-title {
-  color: var(--color-text-primary) !important;
-}
-
-.swal2-html-container {
-  color: var(--color-text-secondary) !important;
-}
-
-.swal2-confirm {
-  background-color: var(--color-primary) !important;
-}
-
-.swal2-cancel {
-  background-color: var(--color-text-secondary) !important;
+.p-tooltip {
+  max-width: 300px;
 }

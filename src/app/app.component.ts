@@ -3,12 +3,19 @@ import { RouterOutlet, Router, NavigationEnd } from '@angular/router';
 import { NavbarComponent } from './shared/components/navbar/navbar.component';
 import { filter } from 'rxjs/operators';
 import { Subscription } from 'rxjs';
+import { ToastModule } from 'primeng/toast';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { MessageService } from 'primeng/api';
+import { ConfirmationService } from 'primeng/api';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, NavbarComponent],
+  imports: [RouterOutlet, NavbarComponent, ToastModule, ConfirmDialogModule],
+  providers: [MessageService, ConfirmationService],
   template: `
+    <p-toast></p-toast>
+    <p-confirmdialog></p-confirmdialog>
     @if (showNavbar()) {
       <app-navbar></app-navbar>
     }

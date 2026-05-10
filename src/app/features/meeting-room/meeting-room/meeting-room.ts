@@ -14,9 +14,11 @@ import { SharedFile } from '../../../core/models/room.model';
 import { PeerMessage } from '../../../core/models/peer-message.model';
 import { QrCodeModalComponent } from '../../../shared/components/qr-code-modal/qr-code-modal.component';
 import { FileUploadComponent } from '../../../shared/components/file-upload/file-upload.component';
+import { MediaPlayerModalComponent } from '../components/media-player-modal/media-player-modal.component';
+import { VideoSettingsModalComponent } from '../components/video-settings-modal/video-settings-modal.component';
+import { ParticipantsPanelComponent } from '../components/participants-panel/participants-panel.component';
 import { TimeAgoPipe } from '../../../shared/pipes/time-ago.pipe';
-import { LucideAngularModule } from 'lucide-angular';
-import { TooltipDirective } from '../../../shared/directives/tooltip.directive';
+import { TooltipModule } from 'primeng/tooltip';
 
 export interface VideoResolution {
   label: string;
@@ -34,7 +36,7 @@ export const RESOLUTION_PRESETS: VideoResolution[] = [
 
 const STORAGE_KEY = 'callix-video-settings';
 
-interface VideoSettings {
+export interface VideoSettings {
   custom: boolean;
   resolutionIndex: number;
 }
@@ -43,9 +45,11 @@ interface VideoSettings {
   selector: 'app-meeting-room',
   standalone: true,
   imports: [
-    CommonModule, FormsModule, SlicePipe,
+    CommonModule, FormsModule,
     QrCodeModalComponent, FileUploadComponent,
-    TimeAgoPipe, LucideAngularModule, TooltipDirective
+    MediaPlayerModalComponent, VideoSettingsModalComponent,
+    ParticipantsPanelComponent,
+    TimeAgoPipe, TooltipModule
   ],
   templateUrl: './meeting-room.html',
   styleUrl: './meeting-room.scss',
@@ -65,8 +69,6 @@ export class MeetingRoomComponent implements OnInit {
   isHost = signal<boolean>(false);
   showChat = signal<boolean>(true);
   showParticipants = signal<boolean>(false);
-  showJoinRequests = signal<boolean>(false);
-  showBanList = signal<boolean>(false);
   showRoomInfo = signal<boolean>(false);
   showMediaPlayer = signal<boolean>(false);
   showVideoSettings = signal<boolean>(false);
@@ -84,8 +86,8 @@ export class MeetingRoomComponent implements OnInit {
   screenSharing = signal<boolean>(false);
   recording = signal<boolean>(false);
 
-  localStream: MediaStream | null = null;
-  screenStream: MediaStream | null = null;
+  localStream = signal<MediaStream | null>(null);
+  screenStream = signal<MediaStream | null>(null);
   remoteStreams = signal<{ peerId: string, stream: MediaStream }[]>([]);
 
   constructor() {
@@ -101,7 +103,7 @@ export class MeetingRoomComponent implements OnInit {
     });
 
     this.peerService.onIncomingCall$.subscribe(({ peerId, call }) => {
-      const stream = this.localStream || null;
+      const stream = this.localStream();
       if (stream) {
         this.peerService.answerCall(call, stream);
       }
@@ -135,7 +137,7 @@ export class MeetingRoomComponent implements OnInit {
 
       const rawStream = await navigator.mediaDevices.getUserMedia(constraints);
 
-      this.localStream = rawStream;
+      this.localStream.set(rawStream);
     } catch (err) {
       console.error('Failed to get media:', err);
     }
@@ -145,17 +147,17 @@ export class MeetingRoomComponent implements OnInit {
     const settings = this.videoSettings();
     this.saveSettings(settings);
 
-    if (!this.localStream) {
+    if (!this.localStream()) {
       this.initMedia();
       this.showVideoSettings.set(false);
       return;
     }
 
-    const prevAudio = this.localStream.getAudioTracks()[0];
+    const prevAudio = this.localStream()!.getAudioTracks()[0];
     const audioEnabled = prevAudio?.enabled ?? true;
     const videoEnabled = this.cameraOn();
 
-    this.localStream.getTracks().forEach(t => t.stop());
+    this.localStream()!.getTracks().forEach(t => t.stop());
 
     try {
       const constraints: MediaStreamConstraints = { audio: true };
@@ -171,7 +173,7 @@ export class MeetingRoomComponent implements OnInit {
       this.micOn.set(audioEnabled);
       rawStream.getVideoTracks()[0].enabled = videoEnabled;
       this.cameraOn.set(videoEnabled);
-      this.localStream = rawStream;
+      this.localStream.set(rawStream);
 
       this.peerService.closeMediaConnections();
 
@@ -180,7 +182,7 @@ export class MeetingRoomComponent implements OnInit {
         .map(p => p.peerId);
 
       for (const peerId of peers) {
-        this.peerService.callPeer(peerId, this.localStream);
+        this.peerService.callPeer(peerId, this.localStream()!);
       }
     } catch (err) {
       console.error('Failed to reinitialize media:', err);
@@ -224,8 +226,9 @@ export class MeetingRoomComponent implements OnInit {
   }
 
   toggleMic(): void {
-    if (!this.localStream) return;
-    const audioTrack = this.localStream.getAudioTracks()[0];
+    const stream = this.localStream();
+    if (!stream) return;
+    const audioTrack = stream.getAudioTracks()[0];
     if (audioTrack) {
       audioTrack.enabled = !audioTrack.enabled;
       this.micOn.update(v => !v);
@@ -233,8 +236,9 @@ export class MeetingRoomComponent implements OnInit {
   }
 
   toggleCamera(): void {
-    if (!this.localStream) return;
-    const videoTrack = this.localStream.getVideoTracks()[0];
+    const stream = this.localStream();
+    if (!stream) return;
+    const videoTrack = stream.getVideoTracks()[0];
     if (videoTrack) {
       videoTrack.enabled = !videoTrack.enabled;
       this.cameraOn.update(v => !v);
@@ -251,10 +255,11 @@ export class MeetingRoomComponent implements OnInit {
 
   async startScreenShare(): Promise<void> {
     try {
-      this.screenStream = await navigator.mediaDevices.getDisplayMedia({
+      const stream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
         audio: true
       });
+      this.screenStream.set(stream);
       this.screenSharing.set(true);
 
       const msg = {
@@ -271,9 +276,10 @@ export class MeetingRoomComponent implements OnInit {
   }
 
   stopScreenShare(): void {
-    if (this.screenStream) {
-      this.screenStream.getTracks().forEach(t => t.stop());
-      this.screenStream = null;
+    const stream = this.screenStream();
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop());
+      this.screenStream.set(null);
       this.screenSharing.set(false);
 
       const msg = {
@@ -295,7 +301,7 @@ export class MeetingRoomComponent implements OnInit {
       }
       this.recording.set(false);
     } else {
-      const stream = this.localStream || this.screenStream;
+      const stream = this.localStream() || this.screenStream();
       if (stream) {
         this.recordingService.startRecording(stream);
         this.recording.set(true);
@@ -371,13 +377,15 @@ export class MeetingRoomComponent implements OnInit {
   }
 
   private stopMedia(): void {
-    if (this.localStream) {
-      this.localStream.getTracks().forEach(t => t.stop());
-      this.localStream = null;
+    const local = this.localStream();
+    if (local) {
+      local.getTracks().forEach(t => t.stop());
+      this.localStream.set(null);
     }
-    if (this.screenStream) {
-      this.screenStream.getTracks().forEach(t => t.stop());
-      this.screenStream = null;
+    const screen = this.screenStream();
+    if (screen) {
+      screen.getTracks().forEach(t => t.stop());
+      this.screenStream.set(null);
     }
     this.remoteStreams.set([]);
   }

@@ -1,0 +1,17 @@
+<p-dialog
+  [visible]="show && isHost"
+  (visibleChange)="onClose()"
+  header="Media Player"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [closable]="true"
+  class="max-w-md w-full">
+  <input pInputText type="text" [(ngModel)]="mediaUrl" placeholder="Enter media URL (audio/video)" class="w-full mb-4" />
+  <ng-template pTemplate="footer">
+    <div class="flex gap-2 justify-end">
+      <p-button label="Load Media" (onClick)="onLoadMedia()"></p-button>
+      <p-button label="Cancel" severity="secondary" [text]="true" (onClick)="onClose()"></p-button>
+    </div>
+  </ng-template>
+</p-dialog>

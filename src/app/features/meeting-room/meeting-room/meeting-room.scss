@@ -26,3 +26,19 @@ video {
   background: var(--color-text-secondary);
   border-radius: 3px;
 }
+
+.icon-slash {
+  position: relative;
+
+  &::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: -2px;
+    bottom: -2px;
+    width: 2px;
+    background: currentColor;
+    transform: translateX(-50%) rotate(40deg);
+    border-radius: 1px;
+  }
+}

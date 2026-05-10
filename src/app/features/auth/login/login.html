@@ -1,53 +1,34 @@
 <div class="min-h-screen flex items-center justify-center bg-[var(--gradient-bg)] p-4">
-  <div class="glass-card p-8 w-full max-w-md animate__animated animate__fadeInUp">
-    <!-- Logo -->
+  <div class="glass-card p-8 w-full max-w-md">
     <div class="text-center mb-8">
       <h1 class="text-4xl font-bold" style="color: var(--color-primary);">Callix</h1>
-      <p class="mt-2" style="color: var(--color-text-secondary);">P2P meetings & chat — no servers, no limits</p>
+      <p class="mt-2 text-muted-color">P2P meetings & chat — no servers, no limits</p>
     </div>
 
-    <!-- Display Name Input -->
-    <div class="mb-6">
-      <label for="displayName" class="block text-sm font-medium mb-2" style="color: var(--color-text-primary);">
-        Display Name
-      </label>
-      <input
-        id="displayName"
-        type="text"
-        [(ngModel)]="displayName"
-        placeholder="Enter your name"
-        class="w-full px-4 py-3 rounded-lg border bg-transparent focus:outline-none focus:ring-2 transition-all"
-        style="border-color: var(--color-glass-border); color: var(--color-text-primary); --tw-ring-color: var(--color-primary);"
-        (keyup.enter)="loginWithGoogle()"
+    <div class="flex flex-col gap-6">
+      <p-floatLabel>
+        <input pInputText id="displayName" type="text" [(ngModel)]="displayName" class="w-full" />
+        <label for="displayName">Display Name</label>
+      </p-floatLabel>
+
+      <p-button
+        label="Sign in with Google"
+        (onClick)="loginWithGoogle()"
+        [disabled]="isLoading"
+        styleClass="w-full"
+      />
+
+      <p-button
+        label="Sign Up"
+        (onClick)="signUp()"
+        [disabled]="isLoading"
+        severity="secondary"
+        [text]="true"
+        styleClass="w-full"
       />
     </div>
 
-    <!-- Login Button -->
-    <button
-      (click)="loginWithGoogle()"
-      [disabled]="isLoading"
-      class="w-full py-3 px-4 rounded-lg font-medium text-white transition-all hover:opacity-90 disabled:opacity-50 mb-4"
-      style="background-color: var(--color-primary);"
-    >
-      @if (!isLoading) {
-        <span>Sign in with Google</span>
-      } @else {
-        <span>Loading...</span>
-      }
-    </button>
-
-    <!-- Sign Up Button -->
-    <button
-      (click)="signUp()"
-      [disabled]="isLoading"
-      class="w-full py-3 px-4 rounded-lg font-medium transition-all hover:opacity-90 disabled:opacity-50 border"
-      style="color: var(--color-text-primary); border-color: var(--color-glass-border); background: transparent;"
-    >
-      Sign Up
-    </button>
-
-    <!-- Footer -->
-    <p class="text-center mt-6 text-sm" style="color: var(--color-text-secondary);">
+    <p class="text-center mt-6 text-sm text-muted-color">
       By continuing, you agree to our terms of service
     </p>
   </div>

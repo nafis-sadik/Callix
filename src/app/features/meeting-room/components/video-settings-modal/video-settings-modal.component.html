@@ -1,0 +1,46 @@
+<p-dialog
+  [visible]="show"
+  (visibleChange)="onClose()"
+  header="Video Settings"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [closable]="true"
+  class="max-w-sm w-full">
+  <div class="flex flex-col gap-5">
+    <div class="flex items-center gap-3">
+      <p-checkbox
+        [binary]="true"
+        [ngModel]="!settings.custom"
+        (onChange)="onCustomChange()"
+        inputId="auto-res"
+      />
+      <label for="auto-res" class="text-sm">Auto (browser default)</label>
+    </div>
+
+    @if (settings.custom) {
+      <div class="flex flex-col gap-1">
+        <label class="text-xs font-medium mb-1">Resolution</label>
+        @for (res of presets; track res.label; let i = $index) {
+          <div class="flex items-center gap-3 py-1.5 px-3 rounded-lg cursor-pointer"
+               [class.bg-highlight]="settings.resolutionIndex === i">
+            <p-radioButton
+              [value]="i"
+              [ngModel]="settings.resolutionIndex"
+              (onClick)="onResolutionChange(i)"
+              [inputId]="'res-' + i"
+            />
+            <label [for]="'res-' + i" class="text-sm cursor-pointer flex-1">{{ res.label }}</label>
+            <span class="text-xs text-muted-color">{{ res.width }}×{{ res.height }}</span>
+          </div>
+        }
+      </div>
+    }
+  </div>
+  <ng-template pTemplate="footer">
+    <div class="flex gap-2 justify-end">
+      <p-button label="Apply" (onClick)="onApply()"></p-button>
+      <p-button label="Cancel" severity="secondary" [text]="true" (onClick)="onClose()"></p-button>
+    </div>
+  </ng-template>
+</p-dialog>

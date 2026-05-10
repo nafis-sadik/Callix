@@ -1,17 +1,25 @@
 import { ApplicationConfig } from '@angular/core';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { provideAnimations } from '@angular/platform-browser/animations';
-import { LUCIDE_ICONS, LucideIconProvider, icons } from 'lucide-angular';
+import { providePrimeNG } from 'primeng/config';
+import Lara from '@primeuix/themes/lara';
+import { MessageService } from 'primeng/api';
+import { ConfirmationService } from 'primeng/api';
 import { routes } from './app.routes';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideRouter(routes, withComponentInputBinding()),
     provideAnimations(),
-    {
-      provide: LUCIDE_ICONS,
-      multi: true,
-      useValue: new LucideIconProvider(icons)
-    }
+    providePrimeNG({
+      theme: {
+        preset: Lara,
+        options: {
+          darkModeSelector: '.dark'
+        }
+      }
+    }),
+    MessageService,
+    ConfirmationService
   ]
 };

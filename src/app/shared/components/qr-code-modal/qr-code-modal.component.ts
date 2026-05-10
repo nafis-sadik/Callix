@@ -1,56 +1,38 @@
 import { Component, Input, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { DialogModule } from 'primeng/dialog';
+import { ButtonModule } from 'primeng/button';
 import { QRCodeComponent } from 'angularx-qrcode';
-import { LucideAngularModule } from 'lucide-angular';
-import { TooltipDirective } from '../../../shared/directives/tooltip.directive';
 import { AlertService } from '../../../core/services/alert.service';
 
 @Component({
   selector: 'app-qr-code-modal',
   standalone: true,
-  imports: [CommonModule, QRCodeComponent, LucideAngularModule, TooltipDirective],
+  imports: [CommonModule, DialogModule, ButtonModule, QRCodeComponent],
   template: `
-    @if (show) {
-      <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="glass-card p-6 w-full max-w-sm animate__animated animate__zoomIn">
-          <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-semibold" style="color: var(--color-text-primary);">Room QR Code</h3>
-            <button (click)="onClose()" style="color: var(--color-text-secondary);" [appTooltip]="'Close'"><lucide-angular name="x" size="16" class="inline-block align-middle"></lucide-angular></button>
-          </div>
-           
-          <div class="text-center mb-4">
-            <p class="text-sm mb-2" style="color: var(--color-text-secondary);">Room ID</p>
-            <p class="font-mono text-sm" style="color: var(--color-text-primary);">{{ roomId }}</p>
-          </div>
-
-          <!-- QR Code -->
-          <div class="bg-white p-4 rounded-lg mb-4 flex items-center justify-center">
-            <qrcode 
-              [qrdata]="roomId"
-              [width]="200"
-              class="mx-auto">
-            </qrcode>
-          </div>
-
-          <div class="flex gap-2">
-            <button
-              (click)="copyToClipboard()"
-              class="flex-1 py-2 rounded-lg text-white text-sm font-medium"
-              style="background-color: var(--color-primary);"
-              [appTooltip]="'Copy room ID to clipboard'">
-              Copy ID
-            </button>
-            <button
-              (click)="downloadQR()"
-              class="flex-1 py-2 rounded-lg text-sm font-medium border"
-              style="border-color: var(--color-glass-border); color: var(--color-text-primary); background: transparent;"
-              [appTooltip]="'Download QR code image'">
-              Download
-            </button>
-          </div>
-        </div>
+    <p-dialog
+      [visible]="show"
+      (visibleChange)="onVisibleChange($event)"
+      header="Room QR Code"
+      [modal]="true"
+      [draggable]="false"
+      [resizable]="false"
+      [closable]="true"
+      class="max-w-sm w-full">
+      <div class="text-center mb-4">
+        <p class="text-sm mb-2 text-muted-color">Room ID</p>
+        <p class="font-mono text-sm">{{ roomId }}</p>
       </div>
-    }
+      <div class="bg-white/90 dark:bg-white/10 p-4 rounded-lg mb-4 flex items-center justify-center">
+        <qrcode [qrdata]="roomId" [width]="200" class="mx-auto"></qrcode>
+      </div>
+      <ng-template pTemplate="footer">
+        <div class="flex gap-2">
+          <p-button label="Copy ID" (onClick)="copyToClipboard()"></p-button>
+          <p-button label="Download" severity="secondary" [text]="true" (onClick)="downloadQR()"></p-button>
+        </div>
+      </ng-template>
+    </p-dialog>
   `
 })
 export class QrCodeModalComponent {
@@ -80,5 +62,11 @@ export class QrCodeModalComponent {
 
   onClose(): void {
     this.close();
+  }
+
+  onVisibleChange(visible: boolean): void {
+    if (!visible) {
+      this.close();
+    }
   }
 }
