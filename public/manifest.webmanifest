@@ -4,7 +4,7 @@
   "description": "P2P meetings and chat — no servers, no limits",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#12151F",
+  "background_color": "#111111",
   "theme_color": "#4F6AF0",
   "orientation": "any",
   "icons": [

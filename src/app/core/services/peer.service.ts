@@ -167,6 +167,14 @@ export class PeerService {
     return Array.from(this.remoteStreams.entries()).map(([peerId, stream]) => ({ peerId, stream }));
   }
 
+  closeMediaConnections(): void {
+    this.mediaConnections.forEach((call) => {
+      try { call.close(); } catch (_) {}
+    });
+    this.mediaConnections.clear();
+    this.remoteStreams.clear();
+  }
+
   getConnectedPeers(): string[] {
     return Array.from(this.dataConnections.keys());
   }

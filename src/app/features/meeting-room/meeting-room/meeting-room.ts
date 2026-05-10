@@ -9,6 +9,7 @@ import { RecordingService } from '../../../core/services/recording.service';
 import { MediaSyncService } from '../../../core/services/media-sync.service';
 import { FileTransferService } from '../../../core/services/file-transfer.service';
 import { AlertService } from '../../../core/services/alert.service';
+
 import { SharedFile } from '../../../core/models/room.model';
 import { PeerMessage } from '../../../core/models/peer-message.model';
 import { QrCodeModalComponent } from '../../../shared/components/qr-code-modal/qr-code-modal.component';
@@ -16,6 +17,27 @@ import { FileUploadComponent } from '../../../shared/components/file-upload/file
 import { TimeAgoPipe } from '../../../shared/pipes/time-ago.pipe';
 import { LucideAngularModule } from 'lucide-angular';
 import { TooltipDirective } from '../../../shared/directives/tooltip.directive';
+
+export interface VideoResolution {
+  label: string;
+  width: number;
+  height: number;
+}
+
+export const RESOLUTION_PRESETS: VideoResolution[] = [
+  { label: '480p (SD)',      width: 640,  height: 480 },
+  { label: '720p (HD)',      width: 1280, height: 720 },
+  { label: '1080p (Full HD)', width: 1920, height: 1080 },
+  { label: '1440p (QHD)',    width: 2560, height: 1440 },
+  { label: '4K (UHD)',       width: 3840, height: 2160 },
+];
+
+const STORAGE_KEY = 'callix-video-settings';
+
+interface VideoSettings {
+  custom: boolean;
+  resolutionIndex: number;
+}
 
 @Component({
   selector: 'app-meeting-room',
@@ -47,10 +69,15 @@ export class MeetingRoomComponent implements OnInit {
   showBanList = signal<boolean>(false);
   showRoomInfo = signal<boolean>(false);
   showMediaPlayer = signal<boolean>(false);
+  showVideoSettings = signal<boolean>(false);
+  carouselCollapsed = signal<boolean>(true);
   mediaUrl = signal<string>('');
   messageText = signal<string>('');
   activeSpeakerId = signal<string | null>(null);
   pinnedParticipantId = signal<string | null>(null);
+
+  videoSettings = signal<VideoSettings>(this.loadSettings());
+  resolutionPresets = RESOLUTION_PRESETS;
 
   micOn = signal<boolean>(true);
   cameraOn = signal<boolean>(true);
@@ -93,13 +120,90 @@ export class MeetingRoomComponent implements OnInit {
 
   async initMedia(): Promise<void> {
     try {
-      this.localStream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true
-      });
+      const settings = this.videoSettings();
+      const constraints: MediaStreamConstraints = { audio: true };
+
+      if (settings.custom) {
+        const res = RESOLUTION_PRESETS[settings.resolutionIndex];
+        constraints.video = {
+          width: { ideal: res.width },
+          height: { ideal: res.height },
+        };
+      } else {
+        constraints.video = { width: { ideal: 1280 }, height: { ideal: 720 } };
+      }
+
+      const rawStream = await navigator.mediaDevices.getUserMedia(constraints);
+
+      this.localStream = rawStream;
     } catch (err) {
       console.error('Failed to get media:', err);
     }
+  }
+
+  async applyVideoSettings(): Promise<void> {
+    const settings = this.videoSettings();
+    this.saveSettings(settings);
+
+    if (!this.localStream) {
+      this.initMedia();
+      this.showVideoSettings.set(false);
+      return;
+    }
+
+    const prevAudio = this.localStream.getAudioTracks()[0];
+    const audioEnabled = prevAudio?.enabled ?? true;
+    const videoEnabled = this.cameraOn();
+
+    this.localStream.getTracks().forEach(t => t.stop());
+
+    try {
+      const constraints: MediaStreamConstraints = { audio: true };
+      if (settings.custom) {
+        const res = RESOLUTION_PRESETS[settings.resolutionIndex];
+        constraints.video = { width: { ideal: res.width }, height: { ideal: res.height } };
+      } else {
+        constraints.video = { width: { ideal: 1280 }, height: { ideal: 720 } };
+      }
+
+      const rawStream = await navigator.mediaDevices.getUserMedia(constraints);
+      rawStream.getAudioTracks()[0].enabled = audioEnabled;
+      this.micOn.set(audioEnabled);
+      rawStream.getVideoTracks()[0].enabled = videoEnabled;
+      this.cameraOn.set(videoEnabled);
+      this.localStream = rawStream;
+
+      this.peerService.closeMediaConnections();
+
+      const peers = this.roomService.participants()
+        .filter(p => p.id !== this.authService.currentUser()?.id)
+        .map(p => p.peerId);
+
+      for (const peerId of peers) {
+        this.peerService.callPeer(peerId, this.localStream);
+      }
+    } catch (err) {
+      console.error('Failed to reinitialize media:', err);
+    }
+
+    this.showVideoSettings.set(false);
+  }
+
+  private loadSettings(): VideoSettings {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return { custom: false, resolutionIndex: 2, ...parsed };
+      }
+    } catch {}
+    return { custom: false, resolutionIndex: 2 };
+  }
+
+  private saveSettings(s: VideoSettings): void {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+    } catch {}
   }
 
   getBigScreenStream(): MediaStream | null {

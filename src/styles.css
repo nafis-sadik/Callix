@@ -6,14 +6,10 @@
   --color-primary-dark: #3B4FBF;
   --color-accent: #6EC6CA;
   --color-surface-light: #F4F6FB;
-  --color-surface-dark: #12151F;
-  --color-glass-bg-light: rgba(255, 255, 255, 0.55);
-  --color-glass-bg-dark: rgba(18, 21, 31, 0.55);
-  --color-glass-border-light: rgba(79, 106, 240, 0.18);
-  --color-glass-border-dark: rgba(110, 198, 202, 0.15);
-  --color-text-primary-light: #1A1D2E;
+  --color-surface-dark: #111111;
+  --color-glass-bg-dark: rgba(255, 255, 255, 0.08);
+  --color-glass-border-dark: rgba(110, 198, 202, 0.12);
   --color-text-primary-dark: #E8ECF4;
-  --color-text-secondary-light: #5A6072;
   --color-text-secondary-dark: #8A94B0;
   --color-success: #34C784;
   --color-warning: #F5A623;
@@ -43,12 +39,12 @@
 }
 
 .dark {
-  --color-surface:        #12151F;
-  --color-glass-bg:       rgba(18, 21, 31, 0.55);
-  --color-glass-border:   rgba(110, 198, 202, 0.15);
+  --color-surface:        #111111;
+  --color-glass-bg:       rgba(255, 255, 255, 0.08);
+  --color-glass-border:   rgba(110, 198, 202, 0.12);
   --color-text-primary:   #E8ECF4;
   --color-text-secondary: #8A94B0;
-  --gradient-bg: linear-gradient(135deg, #12151F 0%, #1A2035 100%);
+  --gradient-bg: linear-gradient(135deg, #111111 0%, #1C1C26 100%);
 }
 
 /* ── Glassmorphism utility ────────────────────────────────── */
