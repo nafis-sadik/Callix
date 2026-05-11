@@ -1,4 +1,5 @@
 import { Injectable, signal, inject } from '@angular/core';
+import { Router } from '@angular/router';
 import { PeerService } from './peer.service';
 import { EncryptionService } from './encryption.service';
 import { AuthService } from './auth.service';
@@ -25,6 +26,7 @@ export class RoomService {
   banList = signal<string[]>([]);
   isHost = signal<boolean>(false);
 
+  private router = inject(Router);
   private joinRequests = new Map<string, { resolve: (result: JoinResult) => void; reject: (err: Error) => void }>();
   private peerService = inject(PeerService);
   private encryptionService = inject(EncryptionService);
@@ -263,6 +265,7 @@ export class RoomService {
     const kickMsg = this.createPeerMessage('kick', { userId }, user?.id || '');
 
     this.peerService.sendMessage(participant.peerId, kickMsg).catch(err => console.error('Failed to send kick message:', err));
+    this.peerService.disconnectFromPeer(participant.peerId);
     this.banUser(userId);
 
     room.participants.delete(userId);
@@ -461,10 +464,12 @@ export class RoomService {
     }
   }
 
-  private handleKicked(message: PeerMessage): void {
-    this.alertService.showKicked('You have been removed from the room.');
+  private async handleKicked(message: PeerMessage): Promise<void> {
+    await this.alertService.showKicked('You have been removed from the room.');
+    this.peerService.destroy();
     this.resetRoom();
     this.encryptionService.clearKeys();
+    this.router.navigate(['/home']);
   }
 
   private handleRoomDestroyed(): void {
@@ -488,6 +493,8 @@ export class RoomService {
     const { publicKey } = message.payload;
     if (!publicKey) return;
 
+    const hostPeerId = room.id;
+
     Promise.resolve().then(async () => {
       const ecdhKeyPair = await this.encryptionService.generateKeyPair();
       const hostPublicKey = await this.encryptionService.importPublicKey(publicKey);
@@ -496,7 +503,8 @@ export class RoomService {
 
       const myPublicKey = await this.encryptionService.exportPublicKey();
       const response = this.createPeerMessage('key-exchange-response', { publicKey: myPublicKey }, this.authService.currentUser()?.id || '');
-      await this.peerService.sendMessage(message.senderId, response);
+      if (this.currentRoom()?.id !== hostPeerId) return;
+      await this.peerService.sendMessage(hostPeerId, response);
     }).catch(err => {
       console.error('Key exchange failed:', err);
     });

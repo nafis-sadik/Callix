@@ -26,11 +26,11 @@ export interface VideoResolution {
 }
 
 export const RESOLUTION_PRESETS: VideoResolution[] = [
-  { label: '480p (SD)',      width: 640,  height: 480 },
-  { label: '720p (HD)',      width: 1280, height: 720 },
+  { label: '480p (SD)', width: 640, height: 480 },
+  { label: '720p (HD)', width: 1280, height: 720 },
   { label: '1080p (Full HD)', width: 1920, height: 1080 },
-  { label: '1440p (QHD)',    width: 2560, height: 1440 },
-  { label: '4K (UHD)',       width: 3840, height: 2160 },
+  { label: '1440p (QHD)', width: 2560, height: 1440 },
+  { label: '4K (UHD)', width: 3840, height: 2160 },
 ];
 
 const STORAGE_KEY = 'callix-video-settings';
@@ -66,12 +66,13 @@ export class MeetingRoomComponent implements OnInit {
 
   roomId = signal<string>('');
   isHost = signal<boolean>(false);
-  showChat = signal<boolean>(true);
+  showChat = signal<boolean>(false);
   showParticipants = signal<boolean>(false);
+  participantsPanelOpenOnce = signal(false);
   showRoomInfo = signal<boolean>(false);
   showMediaPlayer = signal<boolean>(false);
   showVideoSettings = signal<boolean>(false);
-  carouselCollapsed = signal<boolean>(true);
+  carouselCollapsed = signal<boolean>(false);
   mediaUrl = signal<string>('');
   activeSpeakerId = signal<string | null>(null);
   pinnedParticipantId = signal<string | null>(null);
@@ -196,14 +197,14 @@ export class MeetingRoomComponent implements OnInit {
         const parsed = JSON.parse(stored);
         return { custom: false, resolutionIndex: 2, ...parsed };
       }
-    } catch {}
+    } catch { }
     return { custom: false, resolutionIndex: 2 };
   }
 
   private saveSettings(s: VideoSettings): void {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
-    } catch {}
+    } catch { }
   }
 
   getBigScreenStream(): MediaStream | null {

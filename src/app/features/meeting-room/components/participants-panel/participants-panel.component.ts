@@ -39,7 +39,6 @@ export class ParticipantsPanelComponent {
   @Output() unbanAll = new EventEmitter<void>();
   @Output() close = new EventEmitter<void>();
 
-  activeTab = signal<string | number>(0);
   searchQuery = signal('');
 
   onVisibleChange(visible: boolean): void {

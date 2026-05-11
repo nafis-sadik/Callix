@@ -153,8 +153,11 @@
         class="h-10 px-5 rounded-full inline-flex items-center justify-center gap-2 border border-transparent transition duration-150 hover:bg-[var(--color-glass-bg)] hover:border-[var(--color-glass-border)] hover:text-[var(--color-primary)] relative"
         [style.color]="recording() ? 'var(--color-danger)' : 'var(--color-text-secondary)'"
         [pTooltip]="'Record Session'" tooltipPosition="top">
+        @if (!recording()) {
         <i class="pi pi-circle-fill"></i>
+        }
         @if (recording()) {
+        <i class="pi pi-stop-circle"></i>
         <div class="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
         }
       </button>
@@ -173,7 +176,7 @@
       </button>
 
       <!-- Participants toggle -->
-      <button (click)="showParticipants.update(v => !v)"
+      <button (click)="showParticipants.update(v => !v); participantsPanelOpenOnce.set(true)"
         class="h-10 px-5 rounded-full inline-flex items-center justify-center gap-2 border border-transparent transition duration-150 hover:bg-[var(--color-glass-bg)] hover:border-[var(--color-glass-border)] hover:text-[var(--color-primary)] relative"
         style="color: var(--color-text-secondary);" [pTooltip]="'Participants'" tooltipPosition="top">
         <i class="pi pi-users"></i>
@@ -189,17 +192,19 @@
       @if (isHost()) {
       <button (click)="toggleMediaPlayer()"
         class="h-10 px-5 rounded-full inline-flex items-center justify-center gap-2 border border-transparent transition duration-150 hover:bg-[var(--color-glass-bg)] hover:border-[var(--color-glass-border)] hover:text-[var(--color-primary)]"
-        style="color: var(--color-text-secondary);" [pTooltip]="'Toggle media player'">
+        style="color: var(--color-text-secondary);" [pTooltip]="'Media player'" tooltipPosition="top">
         <i class="pi pi-video"></i>
       </button>
       }
 
-      <!-- Room info -->
+      <!-- Room info (host only) -->
+      @if (isHost()) {
       <button (click)="showRoomInfo.update(v => !v)"
         class="h-10 px-5 rounded-full inline-flex items-center justify-center gap-2 border border-transparent transition duration-150 hover:bg-[var(--color-glass-bg)] hover:border-[var(--color-glass-border)] hover:text-[var(--color-primary)]"
         style="color: var(--color-text-secondary);" [pTooltip]="'Room info and QR code'" tooltipPosition="top">
         <i class="pi pi-info-circle"></i>
       </button>
+      }
 
       <!-- Video settings -->
       <button (click)="showVideoSettings.set(true)"
@@ -228,7 +233,7 @@
   <!-- Room Info Modal -->
   <app-qr-code-modal [roomId]="roomId()" [show]="showRoomInfo()" [close]="closeRoomInfo"></app-qr-code-modal>
 
-  @if (isHost()) {
+  @if (showParticipants() || participantsPanelOpenOnce()) {
   <app-participants-panel [show]="showParticipants()" [participants]="roomService.participants()"
     [requests]="roomService.pendingRequests()" [banList]="roomService.banList()" [isHost]="isHost()"
     [currentUserId]="currentUserId() ?? ''" (kick)="kickParticipant($event)" (approve)="approveRequest($event)"
