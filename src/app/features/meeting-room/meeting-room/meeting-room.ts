@@ -13,10 +13,10 @@ import { AlertService } from '../../../core/services/alert.service';
 import { SharedFile } from '../../../core/models/room.model';
 import { PeerMessage } from '../../../core/models/peer-message.model';
 import { QrCodeModalComponent } from '../../../shared/components/qr-code-modal/qr-code-modal.component';
-import { FileUploadComponent } from '../../../shared/components/file-upload/file-upload.component';
 import { MediaPlayerModalComponent } from '../components/media-player-modal/media-player-modal.component';
 import { VideoSettingsModalComponent } from '../components/video-settings-modal/video-settings-modal.component';
 import { ParticipantsPanelComponent } from '../components/participants-panel/participants-panel.component';
+import { ChatPanelComponent } from '../components/chat-panel/chat-panel.component';
 import { TimeAgoPipe } from '../../../shared/pipes/time-ago.pipe';
 import { TooltipModule } from 'primeng/tooltip';
 
@@ -46,9 +46,9 @@ export interface VideoSettings {
   standalone: true,
   imports: [
     CommonModule, FormsModule,
-    QrCodeModalComponent, FileUploadComponent,
+    QrCodeModalComponent,
     MediaPlayerModalComponent, VideoSettingsModalComponent,
-    ParticipantsPanelComponent,
+    ParticipantsPanelComponent, ChatPanelComponent,
     TimeAgoPipe, TooltipModule
   ],
   templateUrl: './meeting-room.html',
@@ -74,7 +74,6 @@ export class MeetingRoomComponent implements OnInit {
   showVideoSettings = signal<boolean>(false);
   carouselCollapsed = signal<boolean>(true);
   mediaUrl = signal<string>('');
-  messageText = signal<string>('');
   activeSpeakerId = signal<string | null>(null);
   pinnedParticipantId = signal<string | null>(null);
 
@@ -324,20 +323,6 @@ export class MeetingRoomComponent implements OnInit {
     }
   }
 
-  sendMessage(): void {
-    const text = this.messageText().trim();
-    if (!text) return;
-    this.roomService.addMessage(text);
-    this.messageText.set('');
-  }
-
-  sendMessageOnEnter(event: KeyboardEvent): void {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault();
-      this.sendMessage();
-    }
-  }
-
   async onFileSelected(file: File): Promise<void> {
     try {
       if (file.size > this.fileTransferService.LARGE_FILE_THRESHOLD) {
@@ -364,10 +349,6 @@ export class MeetingRoomComponent implements OnInit {
     if (peers.length > 0) {
       await this.fileTransferService.sendFile(file, peers, user.id);
     }
-  }
-
-  insertEmoji(emoji: string): void {
-    this.messageText.update(v => v + emoji);
   }
 
   leaveRoom(): void {
@@ -421,6 +402,10 @@ export class MeetingRoomComponent implements OnInit {
 
   closeRoomInfo = () => {
     this.showRoomInfo.set(false);
+  };
+
+  getFileById = (id: string): SharedFile | undefined => {
+    return this.fileTransferService.getFileById(id);
   };
 
   downloadFile(file: SharedFile): void {

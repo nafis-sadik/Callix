@@ -6,5 +6,6 @@ export const routes: Routes = [
   { path: 'login', loadComponent: () => import('./features/auth/login/login').then(m => m.LoginComponent) },
   { path: 'home', loadComponent: () => import('./features/home/home').then(m => m.HomeComponent), canActivate: [authGuard] },
   { path: 'meeting/:roomId', loadComponent: () => import('./features/meeting-room/meeting-room/meeting-room').then(m => m.MeetingRoomComponent), canActivate: [authGuard] },
+  { path: 'chat/:roomId', loadComponent: () => import('./features/chat-room/chat-room').then(m => m.ChatRoomComponent), canActivate: [authGuard] },
   { path: '**', redirectTo: '/home' }
 ];

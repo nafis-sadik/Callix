@@ -8,6 +8,13 @@ import { User, Room, RoomType, EncryptionAlgorithm, JoinRequest, Message, Shared
 import { PeerMessage, PeerMessageType } from '../models/peer-message.model';
 import { v4 as uuidv4 } from 'uuid';
 
+export interface JoinResult {
+  approved: boolean;
+  type?: RoomType;
+  roomId?: string;
+  roomName?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class RoomService {
   currentRoom = signal<Room | null>(null);
@@ -18,6 +25,7 @@ export class RoomService {
   banList = signal<string[]>([]);
   isHost = signal<boolean>(false);
 
+  private joinRequests = new Map<string, { resolve: (result: JoinResult) => void; reject: (err: Error) => void }>();
   private peerService = inject(PeerService);
   private encryptionService = inject(EncryptionService);
   private authService = inject(AuthService);
@@ -149,6 +157,32 @@ export class RoomService {
     }
   }
 
+  async joinRoomAndWait(roomId: string): Promise<JoinResult> {
+    await this.joinRoom(roomId);
+
+    return new Promise<JoinResult>((resolve, reject) => {
+      this.joinRequests.set(roomId, { resolve, reject });
+
+      setTimeout(() => {
+        if (this.joinRequests.has(roomId)) {
+          this.joinRequests.delete(roomId);
+          resolve({ approved: false });
+        }
+      }, 30000);
+    });
+  }
+
+  cancelJoinRequest(roomId: string): void {
+    const request = this.joinRequests.get(roomId);
+    if (request) {
+      request.reject(new Error('Cancelled'));
+      this.joinRequests.delete(roomId);
+    }
+    if (this.peerService.isConnectedTo(roomId)) {
+      this.peerService.disconnectFromPeer(roomId);
+    }
+  }
+
   approveRequest(userId: string): void {
     const room = this.currentRoom();
     if (!room || !this.isHost()) return;
@@ -197,7 +231,7 @@ export class RoomService {
     this.currentRoom.set(room);
 
     const user = this.authService.currentUser();
-    const response = this.createPeerMessage('join-response', { approved: false }, user?.id || '');
+    const response = this.createPeerMessage('join-response', { approved: false, roomId: room.id }, user?.id || '');
 
     this.peerService.sendMessage(request.peerId, response).catch(err => console.error('Failed to send deny response:', err));
   }
@@ -380,7 +414,16 @@ export class RoomService {
 
   private handleJoinResponse(message: PeerMessage): void {
     const payload = message.payload;
-    if (!payload.approved) return;
+    const roomId = payload.roomId;
+
+    if (!payload.approved) {
+      const request = roomId ? this.joinRequests.get(roomId) : null;
+      if (request) {
+        this.joinRequests.delete(roomId);
+        request.resolve({ approved: false, roomId });
+      }
+      return;
+    }
 
     const user = this.authService.currentUser();
     if (!user) return;
@@ -410,6 +453,12 @@ export class RoomService {
     this.isHost.set(false);
     this.updateParticipantsFromRoom(room);
     this.addMessage('You have joined the room', 'system');
+
+    const request = this.joinRequests.get(room.id);
+    if (request) {
+      this.joinRequests.delete(room.id);
+      request.resolve({ approved: true, type: room.type, roomId: room.id, roomName: room.name });
+    }
   }
 
   private handleKicked(message: PeerMessage): void {

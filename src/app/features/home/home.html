@@ -1,85 +1,98 @@
-<div class="min-h-screen bg-[var(--gradient-bg)] p-4 sm:p-8">
+<div class="min-h-screen bg-[var(--gradient-bg)] p-4 sm:p-8" [class.pointer-events-none]="joiningState() === 'waiting'">
   <div class="max-w-7xl mx-auto flex flex-col gap-6">
 
-    <!-- Start Meeting -->
-    <div class="glass-card p-6">
-      <h2 class="text-2xl font-semibold mb-4" style="color: var(--color-text-primary);">Start a Meeting</h2>
-      <div class="flex flex-col sm:flex-row gap-4">
-        <input pInputText type="text" [(ngModel)]="newRoomName" placeholder="Meeting name" class="flex-1" />
-        <p-select
-          [options]="encryptionOptions"
-          [(ngModel)]="encryptionAlgo"
-          optionLabel="label"
-          optionValue="value"
-          placeholder="Encryption"
-          styleClass="min-w-52"
-        />
-        <p-button label="Start Meeting" (onClick)="startMeeting()" />
-      </div>
-    </div>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-    <!-- Join Room -->
-    <div class="glass-card p-6">
-      <h2 class="text-2xl font-semibold mb-4" style="color: var(--color-text-primary);">Join a Room</h2>
-      <div class="flex flex-col sm:flex-row gap-4">
-        <input pInputText type="text" [(ngModel)]="joinGuid" placeholder="Enter room GUID" class="flex-1"
-          (keyup.enter)="joinRoom()" />
-        <p-button label="Join Room" (onClick)="joinRoom()" />
-      </div>
-    </div>
-
-    <!-- My Chat Rooms -->
-    <div>
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-2xl font-semibold" style="color: var(--color-text-primary);">My Chat Rooms</h2>
-        <p-button
-          [label]="showCreateChat() ? 'Cancel' : '+ New Chat Room'"
-          (onClick)="toggleCreateChat()"
-          severity="secondary"
-        />
-      </div>
-
-      @if (showCreateChat()) {
-        <div class="glass-card p-6 mb-4">
-          <div class="flex flex-col sm:flex-row gap-4">
-            <input pInputText type="text" [(ngModel)]="newRoomName" placeholder="Chat room name" class="flex-1"
-              (keyup.enter)="createChatRoom()" />
+      <p-card>
+        <ng-template pTemplate="header">
+          <div class="px-6 pt-6">
+            <h2 class="text-2xl font-semibold m-0" style="color: var(--color-text-primary);">Create a Room</h2>
+          </div>
+        </ng-template>
+        <div class="flex flex-col gap-4">
+          @if (!isMeeting) {
+            <input pInputText type="text" [(ngModel)]="newRoomName" placeholder="Room name"
+              (keyup.enter)="createRoom()" />
+          }
+          <div class="flex flex-row gap-3 items-center">
+            <p-toggleButton
+              [(ngModel)]="isMeeting"
+              onLabel="Meeting"
+              offLabel="Chat"
+              (onChange)="roomType = $event.checked ? 'meeting' : 'chat'"
+            />
             <p-select
               [options]="encryptionOptions"
               [(ngModel)]="encryptionAlgo"
               optionLabel="label"
               optionValue="value"
               placeholder="Encryption"
-              styleClass="min-w-52"
+              styleClass="min-w-44"
             />
-            <p-button label="Create" (onClick)="createChatRoom()" />
+            <p-button label="Create Room" (onClick)="createRoom()" />
           </div>
         </div>
-      }
+      </p-card>
 
-      @if (chatRooms().length === 0) {
-        <div class="glass-card p-8 text-center text-muted-color">
-          No active chat rooms. Create one to get started!
-        </div>
-      }
-
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        @for (room of chatRooms(); track room.id) {
-          <div class="glass-card p-6">
-            <div class="flex items-center justify-between mb-3">
-              <h3 class="font-semibold text-lg" style="color: var(--color-text-primary);">{{ room.name }}</h3>
-              <p-button label="Leave" severity="danger" [text]="true" size="small" (onClick)="leaveChatRoom(room.id)" />
-            </div>
-            <div class="flex items-center gap-2 text-sm mb-2 text-muted-color">
-              <span>ID: {{ room.id | slice:0:8 }}...</span>
-              <p-tag value="Host" severity="info" />
-            </div>
-            <p class="text-sm text-muted-color">
-              {{ room.participants.size }} participant(s) • {{ room.messages.length }} message(s)
-            </p>
+      <p-card>
+        <ng-template pTemplate="header">
+          <div class="px-6 pt-6">
+            <h2 class="text-2xl font-semibold m-0" style="color: var(--color-text-primary);">Join a Room</h2>
           </div>
-        }
-      </div>
+        </ng-template>
+        <div class="flex flex-row gap-3 items-center">
+          <p-iconfield class="flex-1">
+            <input pInputText type="text" [(ngModel)]="joinGuid" placeholder="Enter room GUID" class="w-full pr-10"
+              (keyup.enter)="joinRoom()" />
+            <i class="pi pi-camera p-inputicon cursor-pointer" (click)="scanQrCode()" pTooltip="Scan QR Code"
+              style="pointer-events: auto;"></i>
+          </p-iconfield>
+          <p-button label="Join Room" (onClick)="joinRoom()" />
+        </div>
+      </p-card>
+
     </div>
+
+    <!-- My Chat Rooms -->
+    @if (chatRooms().length > 0) {
+      <div>
+        <h2 class="text-2xl font-semibold mb-4" style="color: var(--color-text-primary);">My Chat Rooms</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          @for (room of chatRooms(); track room.id) {
+            <div class="glass-card p-6">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="font-semibold text-lg" style="color: var(--color-text-primary);">{{ room.name }}</h3>
+                <p-button label="Leave" severity="danger" [text]="true" size="small" (onClick)="leaveChatRoom(room.id)" />
+              </div>
+              <div class="flex items-center gap-2 text-sm mb-2 text-muted-color">
+                <span>ID: {{ room.id | slice:0:8 }}...</span>
+                <p-tag value="Host" severity="info" />
+              </div>
+              <p class="text-sm text-muted-color">
+                {{ room.participants.size }} participant(s) • {{ room.messages.length }} message(s)
+              </p>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
   </div>
 </div>
+
+<p-dialog header="Scan QR Code" [(visible)]="showQrScanner" [modal]="true" [style]="{ width: '400px' }"
+  (onHide)="stopScanner()">
+  <div id="qr-reader"></div>
+</p-dialog>
+
+@if (joiningState() === 'waiting') {
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+    <div class="glass-card p-8 text-center max-w-sm w-full">
+      <i class="pi pi-spin pi-spinner text-4xl mb-4" style="color: var(--color-primary);"></i>
+      <h3 class="text-xl font-semibold mb-2" style="color: var(--color-text-primary);">Waiting for Approval</h3>
+      <p class="text-sm mb-6" style="color: var(--color-text-secondary);">Your join request has been sent. Waiting for the host to respond...</p>
+      <p-button label="Cancel Request" severity="danger" (onClick)="cancelJoinRequest()" />
+    </div>
+  </div>
+}

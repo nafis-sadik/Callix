@@ -1,0 +1,48 @@
+<div class="h-screen flex flex-col bg-[var(--color-surface)]">
+
+  <!-- Header -->
+  <div class="glass-card rounded-none border-x-0 border-t-0 px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <i class="pi pi-comments text-xl" style="color: var(--color-primary);"></i>
+      <h2 class="text-xl font-semibold m-0" style="color: var(--color-text-primary);">{{ roomName() }}</h2>
+      <span class="text-sm px-2 py-0.5 rounded-full" style="background: var(--color-glass-bg); color: var(--color-text-secondary);">
+        {{ roomService.participants().length }} participant(s)
+      </span>
+    </div>
+    <p-button label="Leave Room" severity="danger" (onClick)="leaveRoom()" />
+  </div>
+
+  <!-- Messages -->
+  <div class="flex-1 overflow-y-auto p-6 space-y-3">
+    @for (message of roomService.messages(); track message.id) {
+      <div class="p-3 rounded-lg max-w-[70%]" [class.ml-auto]="message.senderId === (authService.currentUser()?.id)"
+        [style.background]="message.senderId === (authService.currentUser()?.id) ? 'var(--color-primary)' : 'var(--color-glass-bg)'"
+        [style.color]="message.senderId === (authService.currentUser()?.id) ? 'white' : 'var(--color-text-primary)'">
+        @if (message.senderId !== (authService.currentUser()?.id)) {
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-xs font-medium" style="color: var(--color-primary);">{{ message.senderName }}</span>
+            <span class="text-xs" style="color: var(--color-text-secondary);">{{ message.timestamp | timeAgo }}</span>
+          </div>
+        }
+        <p class="text-sm m-0">{{ message.content }}</p>
+      </div>
+    } @empty {
+      <div class="h-full flex flex-col items-center justify-center" style="color: var(--color-text-secondary);">
+        <i class="pi pi-comments text-5xl mb-4 opacity-30"></i>
+        <p>No messages yet. Start the conversation!</p>
+      </div>
+    }
+  </div>
+
+  <!-- Message Input -->
+  <div class="glass-card rounded-none border-x-0 border-b-0 px-6 py-4">
+    <div class="flex gap-3 items-center">
+      <input type="text" [ngModel]="messageText()" (ngModelChange)="messageText.set($event)"
+        placeholder="Type a message..." class="flex-1 px-4 py-3 rounded-xl border bg-transparent text-sm"
+        style="border-color: var(--color-glass-border); color: var(--color-text-primary);"
+        (keydown)="sendMessageOnEnter($event)" />
+      <p-button label="Send" (onClick)="sendMessage()" />
+    </div>
+  </div>
+
+</div>

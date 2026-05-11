@@ -1,0 +1,54 @@
+<p-drawer [visible]="show" (visibleChange)="onVisibleChange($event)" header="Chat" [position]="'right'">
+  <div class="flex flex-col h-full">
+    <div class="flex-1 overflow-y-auto space-y-3">
+      @for (message of messages; track message.id) {
+      <div class="p-3 rounded-lg surface-ground">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="text-xs font-medium text-primary">{{ message.senderName }}</span>
+          <span class="text-xs text-muted-color">{{ message.timestamp | timeAgo }}</span>
+        </div>
+        @if (message.type === 'file') {
+        <div class="text-sm text-color">
+          <span><i class="pi pi-paperclip"></i> {{ message.content }}</span>
+          @if (getFileById(message.id); as file) {
+          <button (click)="onDownloadFile(file)" class="ml-2 px-2 py-1 text-xs rounded text-white"
+            style="background-color: var(--color-primary);" pTooltip="Download file">
+            Download
+          </button>
+          }
+        </div>
+        } @else {
+        <p class="text-sm text-color">{{ message.content }}</p>
+        }
+      </div>
+      }
+    </div>
+
+    <div class="mt-2">
+      <app-file-upload (fileSelected)="onFileSelected($event)"></app-file-upload>
+    </div>
+
+    <div class="pt-3">
+      <div class="flex flex-col gap-2">
+        <div class="flex gap-1 flex-wrap">
+          @for (emoji of EMOJIS; track emoji) {
+          <button (click)="insertEmoji(emoji)" class="text-sm hover:scale-110 transition-transform"
+            [pTooltip]="'Insert ' + emoji">
+            {{ emoji }}
+          </button>
+          }
+        </div>
+        <div class="flex gap-2">
+          <input type="text" [ngModel]="messageText()" (ngModelChange)="messageText.set($event)"
+            placeholder="Type a message..." class="flex-1 px-3 py-2 rounded-lg border bg-transparent text-sm"
+            style="border-color: var(--color-glass-border); color: var(--color-text-primary);"
+            (keydown)="onSendOnEnter($event)" />
+          <button (click)="onSend()" class="px-4 py-2 rounded-lg text-sm text-white"
+            style="background-color: var(--color-primary);" pTooltip="Send message">
+            Send
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</p-drawer>

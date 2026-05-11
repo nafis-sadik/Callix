@@ -1,27 +1,35 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule, SlicePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { RoomService } from '../../core/services/room.service';
+import { RoomService, JoinResult } from '../../core/services/room.service';
 import { AuthService } from '../../core/services/auth.service';
 import { PeerService } from '../../core/services/peer.service';
 import { EncryptionService } from '../../core/services/encryption.service';
 import { AlertService } from '../../core/services/alert.service';
-import { Room, EncryptionAlgorithm } from '../../core/models/room.model';
+import { Room, EncryptionAlgorithm, RoomType } from '../../core/models/room.model';
 import { InputTextModule } from 'primeng/inputtext';
 import { ButtonModule } from 'primeng/button';
 import { SelectModule } from 'primeng/select';
 import { TooltipModule } from 'primeng/tooltip';
 import { TagModule } from 'primeng/tag';
+import { CardModule } from 'primeng/card';
+import { IconFieldModule } from 'primeng/iconfield';
+import { InputIconModule } from 'primeng/inputicon';
+import { DialogModule } from 'primeng/dialog';
+import { ToggleButtonModule } from 'primeng/togglebutton';
+import { Html5Qrcode } from 'html5-qrcode';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, FormsModule, SlicePipe, InputTextModule, ButtonModule, SelectModule, TooltipModule, TagModule],
+  imports: [CommonModule, FormsModule, SlicePipe,
+    InputTextModule, ButtonModule, SelectModule, TooltipModule, TagModule,
+    CardModule, IconFieldModule, InputIconModule, DialogModule, ToggleButtonModule],
   templateUrl: './home.html',
   styleUrl: './home.scss',
 })
-export class HomeComponent implements OnInit {
+export class HomeComponent implements OnInit, OnDestroy {
   private roomService = inject(RoomService);
   private authService = inject(AuthService);
   private peerService = inject(PeerService);
@@ -32,8 +40,21 @@ export class HomeComponent implements OnInit {
   joinGuid = '';
   newRoomName = '';
   encryptionAlgo: EncryptionAlgorithm = 'AES-GCM-256';
+  roomType: RoomType = 'meeting';
   chatRooms = signal<Room[]>([]);
-  showCreateChat = signal<boolean>(false);
+  showQrScanner = signal(false);
+  private qrCodeReader: Html5Qrcode | null = null;
+
+  isMeeting = true;
+  joiningState = signal<'idle' | 'waiting'>('idle');
+  joiningRoomId = '';
+
+  encryptionOptions = [
+    { value: 'AES-GCM-256', label: 'AES-GCM-256 (Encrypted)' },
+    { value: 'AES-CBC-256', label: 'AES-CBC-256 (Encrypted)' },
+    { value: 'ChaCha20-Poly1305', label: 'ChaCha20-Poly1305 (Encrypted)' },
+    { value: 'none', label: 'None (No Encryption)' }
+  ];
 
   ngOnInit(): void {
     const user = this.authService.currentUser();
@@ -45,62 +66,102 @@ export class HomeComponent implements OnInit {
     }
   }
 
-  async startMeeting(): Promise<void> {
-    if (!this.newRoomName.trim()) {
+  ngOnDestroy(): void {
+    this.stopScanner();
+  }
+
+  async createRoom(): Promise<void> {
+    if (this.roomType === 'chat' && !this.newRoomName.trim()) {
       this.alertService.showError('Error', 'Please enter a room name');
       return;
     }
 
-    const room = this.roomService.createRoom('meeting', this.newRoomName, this.encryptionAlgo);
+    const name = this.roomType === 'meeting' ? (this.newRoomName.trim() || 'Meeting') : this.newRoomName;
+    const room = this.roomService.createRoom(this.roomType, name, this.encryptionAlgo);
     if (this.encryptionAlgo !== 'none') {
       await this.encryptionService.generateRoomKey(this.encryptionAlgo);
     }
 
-    this.router.navigate(['/meeting', room.id]);
+    if (this.roomType === 'meeting') {
+      this.router.navigate(['/meeting', room.id]);
+    } else {
+      this.chatRooms.update(rooms => [...rooms, room]);
+      this.newRoomName = '';
+    }
   }
 
-  joinRoom(): void {
+  async joinRoom(): Promise<void> {
     if (!this.joinGuid.trim()) {
       this.alertService.showError('Error', 'Please enter a room GUID');
       return;
     }
 
-    this.roomService.joinRoom(this.joinGuid).then(() => {
-      this.router.navigate(['/meeting', this.joinGuid]);
-    }).catch(err => {
-      this.alertService.showError('Failed to join room', String(err));
-    });
+    const guid = this.joinGuid.trim();
+    this.joinGuid = '';
+    this.joiningRoomId = guid;
+    this.joiningState.set('waiting');
+
+    try {
+      const result = await this.roomService.joinRoomAndWait(guid);
+
+      this.joiningState.set('idle');
+      this.joiningRoomId = '';
+
+      if (result.approved && result.type === 'meeting') {
+        this.router.navigate(['/meeting', guid]);
+      } else if (result.approved && result.type === 'chat') {
+        this.router.navigate(['/chat', guid]);
+      } else {
+        this.alertService.showError('Access Denied', 'The host denied your join request.');
+      }
+    } catch (err) {
+      this.joiningState.set('idle');
+      this.joiningRoomId = '';
+      if (String(err) !== 'Error: Cancelled') {
+        this.alertService.showError('Failed to join room', String(err));
+      }
+    }
   }
 
-  toggleCreateChat(): void {
-    this.showCreateChat.update(v => !v);
+  cancelJoinRequest(): void {
+    this.roomService.cancelJoinRequest(this.joiningRoomId);
+    this.joiningState.set('idle');
+    this.joiningRoomId = '';
   }
 
-  createChatRoom(): void {
-    if (!this.newRoomName.trim()) {
-      this.alertService.showError('Error', 'Please enter a room name');
-      return;
-    }
+  async scanQrCode(): Promise<void> {
+    this.showQrScanner.set(true);
 
-    const room = this.roomService.createRoom('chat', this.newRoomName, this.encryptionAlgo);
-    if (this.encryptionAlgo !== 'none') {
-      this.encryptionService.generateRoomKey(this.encryptionAlgo);
-    }
-    this.chatRooms.update(rooms => [...rooms, room]);
+    await new Promise(resolve => setTimeout(resolve, 100));
 
-    this.newRoomName = '';
-    this.showCreateChat.set(false);
+    try {
+      this.qrCodeReader = new Html5Qrcode('qr-reader');
+      await this.qrCodeReader.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        (decodedText) => {
+          this.joinGuid = decodedText;
+          this.stopScanner();
+          this.joinRoom();
+        },
+        () => {}
+      );
+    } catch {
+      this.alertService.showError('Camera Error', 'Could not access camera. Please check permissions.');
+      this.showQrScanner.set(false);
+    }
+  }
+
+  stopScanner(): void {
+    if (this.qrCodeReader) {
+      this.qrCodeReader.stop().catch(() => {});
+      this.qrCodeReader = null;
+    }
+    this.showQrScanner.set(false);
   }
 
   leaveChatRoom(roomId: string): void {
     const rooms = this.chatRooms().filter(r => r.id !== roomId);
     this.chatRooms.set(rooms);
   }
-
-  encryptionOptions: { value: EncryptionAlgorithm; label: string }[] = [
-    { value: 'AES-GCM-256', label: 'AES-GCM-256 (Encrypted)' },
-    { value: 'AES-CBC-256', label: 'AES-CBC-256 (Encrypted)' },
-    { value: 'ChaCha20-Poly1305', label: 'ChaCha20-Poly1305 (Encrypted)' },
-    { value: 'none', label: 'None (No Encryption)' }
-  ];
 }

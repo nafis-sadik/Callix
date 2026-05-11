@@ -12,3 +12,22 @@ select {
     color: var(--color-text-primary);
   }
 }
+
+.p-inputicon {
+  &.cursor-pointer {
+    z-index: 1;
+  }
+}
+
+#qr-reader {
+  width: 100%;
+  min-height: 300px;
+
+  img {
+    max-width: 100%;
+  }
+}
+
+.pointer-events-none {
+  user-select: none;
+}
