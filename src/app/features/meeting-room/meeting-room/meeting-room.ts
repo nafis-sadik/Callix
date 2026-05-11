@@ -17,7 +17,6 @@ import { MediaPlayerModalComponent } from '../components/media-player-modal/medi
 import { VideoSettingsModalComponent } from '../components/video-settings-modal/video-settings-modal.component';
 import { ParticipantsPanelComponent } from '../components/participants-panel/participants-panel.component';
 import { ChatPanelComponent } from '../components/chat-panel/chat-panel.component';
-import { TimeAgoPipe } from '../../../shared/pipes/time-ago.pipe';
 import { TooltipModule } from 'primeng/tooltip';
 
 export interface VideoResolution {
@@ -49,7 +48,7 @@ export interface VideoSettings {
     QrCodeModalComponent,
     MediaPlayerModalComponent, VideoSettingsModalComponent,
     ParticipantsPanelComponent, ChatPanelComponent,
-    TimeAgoPipe, TooltipModule
+    TooltipModule
   ],
   templateUrl: './meeting-room.html',
   styleUrl: './meeting-room.scss',
