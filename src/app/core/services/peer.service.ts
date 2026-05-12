@@ -16,6 +16,7 @@ export class PeerService {
   onIncomingConnection$ = new Subject<string>();
   onIncomingCall$ = new Subject<{ peerId: string, call: any }>();
   onRemoteStream$ = new Subject<{ peerId: string, stream: MediaStream }>();
+  onDisconnected$ = new Subject<string>();
 
   private peerIdValue: string | null = null;
 
@@ -105,6 +106,7 @@ export class PeerService {
 
     conn.on('close', () => {
       this.dataConnections.delete(peerId);
+      this.onDisconnected$.next(peerId);
     });
   }
 

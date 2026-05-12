@@ -1,8 +1,8 @@
 export type PeerMessageType =
   | 'chat' | 'file-meta' | 'file-chunk' | 'file-complete'
   | 'join-request' | 'join-response'
-  | 'kick' | 'ban' | 'unban'
-  | 'room-destroyed' | 'participant-update'
+  | 'kick' | 'kick-confirmation' | 'ban' | 'unban'
+  | 'room-destroyed' | 'participant-update' | 'ban-list-sync'
   | 'media-sync' | 'screen-share-start' | 'screen-share-stop'
   | 'active-speaker' | 'system' | 'history-sync' | 'file-request'
   | 'key-exchange' | 'key-exchange-response';

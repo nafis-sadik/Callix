@@ -30,6 +30,7 @@ export class ParticipantsPanelComponent {
   @Input() banList: string[] = [];
   @Input() isHost = false;
   @Input() currentUserId = '';
+  @Input() pendingKicks: string[] = [];
   @Output() kick = new EventEmitter<string>();
   @Output() approve = new EventEmitter<string>();
   @Output() deny = new EventEmitter<string>();

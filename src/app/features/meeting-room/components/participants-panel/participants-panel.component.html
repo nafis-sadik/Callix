@@ -30,7 +30,7 @@
                 </div>
               </div>
               @if (isHost && participant.id !== currentUserId) {
-              <p-button label="Kick" severity="danger" size="small" [text]="true" (onClick)="onKick(participant.id)" />
+              <p-button label="Kick" severity="danger" size="small" [text]="true" (onClick)="onKick(participant.id)" [disabled]="pendingKicks.includes(participant.id)" />
               }
             </div>
             }

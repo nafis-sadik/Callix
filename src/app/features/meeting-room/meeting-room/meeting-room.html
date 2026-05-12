@@ -236,7 +236,7 @@
   @if (showParticipants() || participantsPanelOpenOnce()) {
   <app-participants-panel [show]="showParticipants()" [participants]="roomService.participants()"
     [requests]="roomService.pendingRequests()" [banList]="roomService.banList()" [isHost]="isHost()"
-    [currentUserId]="currentUserId() ?? ''" (kick)="kickParticipant($event)" (approve)="approveRequest($event)"
+    [currentUserId]="currentUserId() ?? ''" [pendingKicks]="roomService.pendingKicks()" (kick)="kickParticipant($event)" (approve)="approveRequest($event)"
     (deny)="denyRequest($event)" (approveAll)="roomService.approveAll()" (denyAll)="roomService.denyAll()"
     (unban)="unbanUser($event)" (unbanAll)="unbanAll()" (close)="showParticipants.set(false)"></app-participants-panel>
   }

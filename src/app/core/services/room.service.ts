@@ -25,6 +25,7 @@ export class RoomService {
   pendingRequests = signal<JoinRequest[]>([]);
   banList = signal<string[]>([]);
   isHost = signal<boolean>(false);
+  pendingKicks = signal<string[]>([]);
 
   private router = inject(Router);
   private joinRequests = new Map<string, { resolve: (result: JoinResult) => void; reject: (err: Error) => void }>();
@@ -33,9 +34,33 @@ export class RoomService {
   private authService = inject(AuthService);
   private fileTransferService = inject(FileTransferService);
   private alertService = inject(AlertService);
+  private kickTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
+  private isBeingKicked = false;
 
   constructor() {
     this.setupMessageListeners();
+    this.setupDisconnectListener();
+  }
+
+  private setupMessageListeners(): void {
+    this.peerService.onMessage$.subscribe((message) => {
+      try {
+        if (!message) return;
+        this.handlePeerMessage(message);
+      } catch (err) {
+        console.error('Error handling peer message:', err);
+      }
+    });
+  }
+
+  private setupDisconnectListener(): void {
+    this.peerService.onDisconnected$.subscribe((peerId) => {
+      const room = this.currentRoom();
+      if (!room) return;
+      if (peerId === room.id) {
+        this.handleKickedImplicit();
+      }
+    });
   }
 
   private createPeerMessage(type: PeerMessageType, payload: any, senderId: string): PeerMessage {
@@ -46,13 +71,6 @@ export class RoomService {
       senderId,
       encrypted: false
     };
-  }
-
-  private setupMessageListeners(): void {
-    this.peerService.onMessage$.subscribe((message) => {
-      if (!message) return;
-      this.handlePeerMessage(message);
-    });
   }
 
   private handlePeerMessage(message: PeerMessage): void {
@@ -68,16 +86,22 @@ export class RoomService {
         this.handleJoinResponse(message);
         break;
       case 'participant-update':
-        this.updateParticipantsFromRoom(message.payload);
+        this.handleParticipantUpdate(message.payload);
         break;
       case 'kick':
         this.handleKicked(message);
+        break;
+      case 'kick-confirmation':
+        this.handleKickConfirmation(message);
         break;
       case 'ban':
         this.addToBanList(message.payload);
         break;
       case 'unban':
         this.removeFromBanList(message.payload);
+        break;
+      case 'ban-list-sync':
+        this.handleBanListSync(message.payload);
         break;
       case 'room-destroyed':
         this.handleRoomDestroyed();
@@ -261,16 +285,19 @@ export class RoomService {
     const participant = room.participants.get(userId);
     if (!participant) return;
 
+    this.pendingKicks.update(s => [...s, userId]);
+
     const user = this.authService.currentUser();
     const kickMsg = this.createPeerMessage('kick', { userId }, user?.id || '');
+    this.peerService.sendMessage(participant.peerId, kickMsg).catch(err => {
+      console.error('Failed to send kick message:', err);
+      this.completeKick(userId);
+    });
 
-    this.peerService.sendMessage(participant.peerId, kickMsg).catch(err => console.error('Failed to send kick message:', err));
-    this.peerService.disconnectFromPeer(participant.peerId);
-    this.banUser(userId);
-
-    room.participants.delete(userId);
-    this.updateParticipantsFromRoom(room);
-    this.currentRoom.set(room);
+    const timeoutId = setTimeout(() => {
+      this.completeKick(userId);
+    }, 5000);
+    this.kickTimeouts.set(userId, timeoutId);
   }
 
   banUser(userId: string): void {
@@ -289,6 +316,12 @@ export class RoomService {
     room.banList.delete(userId);
     this.banList.set(Array.from(room.banList));
     this.currentRoom.set(room);
+
+    if (this.isHost()) {
+      const user = this.authService.currentUser();
+      const msg = this.createPeerMessage('ban-list-sync', { banList: Array.from(room.banList) }, user?.id || '');
+      this.peerService.broadcastMessage(msg).catch(err => console.error('Failed to broadcast ban list:', err));
+    }
   }
 
   unbanAll(): void {
@@ -298,6 +331,12 @@ export class RoomService {
     room.banList.clear();
     this.banList.set([]);
     this.currentRoom.set(room);
+
+    if (this.isHost()) {
+      const user = this.authService.currentUser();
+      const msg = this.createPeerMessage('ban-list-sync', { banList: [] }, user?.id || '');
+      this.peerService.broadcastMessage(msg).catch(err => console.error('Failed to broadcast ban list:', err));
+    }
   }
 
   leaveRoom(): void {
@@ -322,12 +361,16 @@ export class RoomService {
   }
 
   private resetRoom(): void {
+    this.isBeingKicked = false;
+    this.kickTimeouts.forEach(id => clearTimeout(id));
+    this.kickTimeouts.clear();
     this.currentRoom.set(null);
     this.participants.set([]);
     this.messages.set([]);
     this.sharedFiles.set([]);
     this.pendingRequests.set([]);
     this.banList.set([]);
+    this.pendingKicks.set([]);
     this.isHost.set(false);
   }
 
@@ -465,11 +508,98 @@ export class RoomService {
   }
 
   private async handleKicked(message: PeerMessage): Promise<void> {
-    await this.alertService.showKicked('You have been removed from the room.');
+    if (this.isBeingKicked) return;
+    this.isBeingKicked = true;
+
+    const room = this.currentRoom();
+    if (room) {
+      const user = this.authService.currentUser();
+      const confirmMsg = this.createPeerMessage('kick-confirmation', { userId: message.payload?.userId }, user?.id || '');
+      this.peerService.sendMessage(room.id, confirmMsg).catch(err => console.error('Failed to send kick confirmation:', err));
+    }
+
+    await Promise.race([
+      this.alertService.showKicked('You have been removed from the room.'),
+      new Promise<void>(resolve => setTimeout(resolve, 15000))
+    ]);
     this.peerService.destroy();
     this.resetRoom();
     this.encryptionService.clearKeys();
     this.router.navigate(['/home']);
+  }
+
+  private async handleKickedImplicit(): Promise<void> {
+    if (this.isBeingKicked) return;
+    this.isBeingKicked = true;
+
+    const room = this.currentRoom();
+    if (!room) return;
+    await Promise.race([
+      this.alertService.showKicked('You have been removed from the room.'),
+      new Promise<void>(resolve => setTimeout(resolve, 15000))
+    ]);
+    this.peerService.destroy();
+    this.resetRoom();
+    this.encryptionService.clearKeys();
+    this.router.navigate(['/home']);
+  }
+
+  private handleKickConfirmation(message: PeerMessage): void {
+    const { userId } = message.payload;
+    this.clearKickTimeout(userId);
+    this.completeKick(userId);
+  }
+
+  private clearKickTimeout(userId: string): void {
+    const timeoutId = this.kickTimeouts.get(userId);
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      this.kickTimeouts.delete(userId);
+    }
+  }
+
+  private handleBanListSync(payload: any): void {
+    const room = this.currentRoom();
+    if (!room) return;
+    const banList: string[] = payload.banList || [];
+    room.banList = new Set(banList);
+    this.banList.set(banList);
+  }
+
+  private completeKick(userId: string): void {
+    this.clearKickTimeout(userId);
+
+    const room = this.currentRoom();
+    if (!room) return;
+
+    this.pendingKicks.update(s => s.filter(id => id !== userId));
+
+    const participant = room.participants.get(userId);
+    if (participant) {
+      room.participants.delete(userId);
+      this.peerService.disconnectFromPeer(participant.peerId);
+    }
+
+    this.banUser(userId);
+    this.updateParticipantsFromRoom(room);
+    this.currentRoom.set(room);
+
+    const user = this.authService.currentUser();
+    const updateMsg = this.createPeerMessage('participant-update', {
+      participants: Array.from(room.participants.values())
+    }, user?.id || '');
+    this.peerService.broadcastMessage(updateMsg).catch(err => console.error('Failed to broadcast participant update:', err));
+
+    const banSyncMsg = this.createPeerMessage('ban-list-sync', {
+      banList: Array.from(room.banList)
+    }, user?.id || '');
+    this.peerService.broadcastMessage(banSyncMsg).catch(err => console.error('Failed to broadcast ban list:', err));
+  }
+
+  private handleParticipantUpdate(payload: any): void {
+    if (payload && Array.isArray(payload.participants)) {
+      this.participants.set(payload.participants);
+    }
   }
 
   private handleRoomDestroyed(): void {
