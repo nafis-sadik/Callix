@@ -32,6 +32,7 @@ export class AlertService {
         header: 'Removed from Meeting',
         message,
         rejectVisible: false,
+        closable: false,
         accept: () => resolve()
       });
     });
@@ -43,6 +44,7 @@ export class AlertService {
         header: 'Meeting Ended',
         message: 'The host has ended the meeting.',
         rejectVisible: false,
+        closable: false,
         accept: () => resolve()
       });
     });

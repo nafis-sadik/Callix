@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DialogModule } from 'primeng/dialog';
@@ -12,7 +12,8 @@ import { VideoResolution, VideoSettings } from '../../meeting-room/meeting-room'
   standalone: true,
   imports: [CommonModule, FormsModule, DialogModule, ButtonModule, CheckboxModule, RadioButtonModule],
   templateUrl: './video-settings-modal.component.html',
-  styleUrl: './video-settings-modal.component.scss'
+  styleUrl: './video-settings-modal.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class VideoSettingsModalComponent {
   @Input() show = false;
@@ -28,13 +29,5 @@ export class VideoSettingsModalComponent {
 
   onResolutionChange(index: number): void {
     this.settingsChange.emit({ ...this.settings, resolutionIndex: index });
-  }
-
-  onApply(): void {
-    this.apply.emit();
-  }
-
-  onClose(): void {
-    this.close.emit();
   }
 }

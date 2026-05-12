@@ -1,6 +1,6 @@
 <p-dialog
   [visible]="show"
-  (visibleChange)="onClose()"
+  (visibleChange)="close.emit()"
   header="Video Settings"
   [modal]="true"
   [draggable]="false"
@@ -39,8 +39,8 @@
   </div>
   <ng-template pTemplate="footer">
     <div class="flex gap-2 justify-end">
-      <p-button label="Apply" (onClick)="onApply()"></p-button>
-      <p-button label="Cancel" severity="secondary" [text]="true" (onClick)="onClose()"></p-button>
+      <p-button label="Apply" (onClick)="apply.emit()"></p-button>
+      <p-button label="Cancel" severity="secondary" [text]="true" (onClick)="close.emit()"></p-button>
     </div>
   </ng-template>
 </p-dialog>

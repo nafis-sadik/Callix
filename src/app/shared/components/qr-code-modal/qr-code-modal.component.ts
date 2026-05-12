@@ -1,4 +1,4 @@
-import { Component, Input, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DialogModule } from 'primeng/dialog';
 import { ButtonModule } from 'primeng/button';
@@ -9,10 +9,11 @@ import { AlertService } from '../../../core/services/alert.service';
   selector: 'app-qr-code-modal',
   standalone: true,
   imports: [CommonModule, DialogModule, ButtonModule, QRCodeComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p-dialog
       [visible]="show"
-      (visibleChange)="onVisibleChange($event)"
+      (visibleChange)="close.emit()"
       header="Room QR Code"
       [modal]="true"
       [draggable]="false"
@@ -39,7 +40,7 @@ export class QrCodeModalComponent {
   private alertService = inject(AlertService);
   @Input() roomId = '';
   @Input() show = false;
-  @Input() close = () => {};
+  @Output() close = new EventEmitter<void>();
 
   async copyToClipboard(): Promise<void> {
     try {
@@ -57,16 +58,6 @@ export class QrCodeModalComponent {
       link.download = 'room-qr-code.png';
       link.href = canvas.toDataURL();
       link.click();
-    }
-  }
-
-  onClose(): void {
-    this.close();
-  }
-
-  onVisibleChange(visible: boolean): void {
-    if (!visible) {
-      this.close();
     }
   }
 }

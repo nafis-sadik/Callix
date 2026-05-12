@@ -20,9 +20,9 @@
         <div class="w-full h-full flex items-center justify-center bg-black">
           <video [src]="mediaUrl()" controls class="w-full h-full object-cover rounded-lg"></video>
         </div>
-        } @else if (getBigScreenStream()) {
+        } @else if (bigScreenStream()) {
         <div class="w-full h-full flex items-center justify-center bg-black">
-          <video [srcObject]="getBigScreenStream()!" autoplay class="w-full h-full object-cover rounded-lg"></video>
+          <video [srcObject]="bigScreenStream()!" autoplay class="w-full h-full object-cover rounded-lg"></video>
         </div>
         } @else {
         <div class="w-full h-full flex items-center justify-center">
@@ -54,8 +54,8 @@
               <!-- Local participant -->
               @if (localStream()) {
               <div class="flex-shrink-0 w-28 h-28 flex flex-col items-center justify-center cursor-pointer rounded-xl"
-                (click)="pinParticipant(authService.currentUser()?.id || '')"
-                [class.ring-2]="pinnedParticipantId() === authService.currentUser()?.id"
+                (click)="pinParticipant(currentUserId())"
+                [class.ring-2]="pinnedParticipantId() === currentUserId()"
                 style="--tw-ring-color: var(--color-primary); background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); overflow: hidden;">
                 <video [srcObject]="localStream()" autoplay muted
                   class="w-full flex-1 object-cover rounded-t-xl"></video>
@@ -115,7 +115,7 @@
     </div>
 
     <app-chat-panel [show]="showChat()" [messages]="roomService.messages()" [getFileById]="getFileById"
-      [currentUserId]="currentUserId() ?? ''" (close)="showChat.set(false)"
+      [currentUserId]="currentUserId()" (close)="showChat.set(false)"
       (sendMessage)="roomService.addMessage($event)" (fileSelected)="onFileSelected($event)"
       (downloadFile)="downloadFile($event)"></app-chat-panel>
   </div>
@@ -231,12 +231,12 @@
     (close)="showVideoSettings.set(false)"></app-video-settings-modal>
 
   <!-- Room Info Modal -->
-  <app-qr-code-modal [roomId]="roomId()" [show]="showRoomInfo()" [close]="closeRoomInfo"></app-qr-code-modal>
+  <app-qr-code-modal [roomId]="roomId()" [show]="showRoomInfo()" (close)="closeRoomInfo()"></app-qr-code-modal>
 
   @if (showParticipants() || participantsPanelOpenOnce()) {
   <app-participants-panel [show]="showParticipants()" [participants]="roomService.participants()"
     [requests]="roomService.pendingRequests()" [banList]="roomService.banList()" [isHost]="isHost()"
-    [currentUserId]="currentUserId() ?? ''" [pendingKicks]="roomService.pendingKicks()" (kick)="kickParticipant($event)" (approve)="approveRequest($event)"
+    [currentUserId]="currentUserId()" [pendingKicks]="roomService.pendingKicks()" (kick)="kickParticipant($event)" (approve)="approveRequest($event)"
     (deny)="denyRequest($event)" (approveAll)="roomService.approveAll()" (denyAll)="roomService.denyAll()"
     (unban)="unbanUser($event)" (unbanAll)="unbanAll()" (close)="showParticipants.set(false)"></app-participants-panel>
   }

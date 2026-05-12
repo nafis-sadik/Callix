@@ -1,12 +1,15 @@
-import { Injectable, signal } from '@angular/core';
+import { DestroyRef, inject, Injectable, signal } from '@angular/core';
 
 @Injectable({ providedIn: 'root' })
 export class ThemeService {
   theme = signal<'light' | 'dark' | 'system'>('system');
+  private prefersDarkMql = window.matchMedia('(prefers-color-scheme: dark)');
 
   constructor() {
     this.loadTheme();
-    this.setupSystemThemeListener();
+    const onChange = () => { if (this.theme() === 'system') this.applyTheme(); };
+    this.prefersDarkMql.addEventListener('change', onChange);
+    inject(DestroyRef).onDestroy(() => this.prefersDarkMql.removeEventListener('change', onChange));
   }
 
   setTheme(theme: 'light' | 'dark' | 'system'): void {
@@ -24,34 +27,11 @@ export class ThemeService {
   }
 
   private applyTheme(): void {
-    const theme = this.theme();
-    const html = document.documentElement;
-
-    if (theme === 'system') {
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      html.classList.toggle('dark', prefersDark);
-    } else {
-      html.classList.toggle('dark', theme === 'dark');
-    }
-  }
-
-  private setupSystemThemeListener(): void {
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-      if (this.theme() === 'system') {
-        this.applyTheme();
-      }
-    });
-  }
-
-  getCurrentTheme(): 'light' | 'dark' | 'system' {
-    return this.theme();
+    const isDark = this.theme() === 'dark' || (this.theme() === 'system' && this.prefersDarkMql.matches);
+    document.documentElement.classList.toggle('dark', isDark);
   }
 
   isDark(): boolean {
-    const theme = this.theme();
-    if (theme === 'system') {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches;
-    }
-    return theme === 'dark';
+    return this.theme() === 'dark' || (this.theme() === 'system' && this.prefersDarkMql.matches);
   }
 }

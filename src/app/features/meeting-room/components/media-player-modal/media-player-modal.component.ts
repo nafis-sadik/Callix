@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DialogModule } from 'primeng/dialog';
@@ -10,7 +10,8 @@ import { InputTextModule } from 'primeng/inputtext';
   standalone: true,
   imports: [CommonModule, FormsModule, DialogModule, ButtonModule, InputTextModule],
   templateUrl: './media-player-modal.component.html',
-  styleUrl: './media-player-modal.component.scss'
+  styleUrl: './media-player-modal.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MediaPlayerModalComponent {
   @Input() show = false;
@@ -19,12 +20,4 @@ export class MediaPlayerModalComponent {
   @Output() mediaUrlChange = new EventEmitter<string>();
   @Output() loadMedia = new EventEmitter<void>();
   @Output() close = new EventEmitter<void>();
-
-  onLoadMedia(): void {
-    this.loadMedia.emit();
-  }
-
-  onClose(): void {
-    this.close.emit();
-  }
 }

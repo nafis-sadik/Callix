@@ -1,15 +1,12 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, signal, computed } from '@angular/core';
 import { User } from '../models/user.model';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly STORAGE_KEY = 'callix-user';
-  
+
   currentUser = signal<User | null>(this.loadUser());
-  
-  get isAuthenticated(): boolean {
-    return this.currentUser() !== null;
-  }
+  isAuthenticated = computed(() => this.currentUser() !== null);
 
   private loadUser(): User | null {
     try {
@@ -20,10 +17,6 @@ export class AuthService {
     }
   }
 
-  generateUserId(): string {
-    return crypto.randomUUID();
-  }
-
   setUser(user: User): void {
     localStorage.setItem(this.STORAGE_KEY, JSON.stringify(user));
     this.currentUser.set(user);
@@ -32,8 +25,7 @@ export class AuthService {
   updateDisplayName(displayName: string): void {
     const user = this.currentUser();
     if (user) {
-      user.displayName = displayName;
-      this.setUser(user);
+      this.setUser({ ...user, displayName });
     }
   }
 

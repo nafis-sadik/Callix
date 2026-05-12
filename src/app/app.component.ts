@@ -1,25 +1,23 @@
-import { Component, inject, signal, OnInit, OnDestroy } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal, OnInit, OnDestroy } from '@angular/core';
 import { RouterOutlet, Router, NavigationEnd } from '@angular/router';
 import { NavbarComponent } from './shared/components/navbar/navbar.component';
 import { filter } from 'rxjs/operators';
 import { Subscription } from 'rxjs';
 import { ToastModule } from 'primeng/toast';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
-import { MessageService } from 'primeng/api';
-import { ConfirmationService } from 'primeng/api';
 
 @Component({
   selector: 'app-root',
   standalone: true,
   imports: [RouterOutlet, NavbarComponent, ToastModule, ConfirmDialogModule],
-  providers: [MessageService, ConfirmationService],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p-toast></p-toast>
     <p-confirmdialog></p-confirmdialog>
-    @if (showNavbar()) {
+    @if (navbarVisible()) {
       <app-navbar></app-navbar>
     }
-    <main [class.min-h-screen]="showNavbar()" [class.h-screen]="!showNavbar()" class="bg-[var(--gradient-bg)]">
+    <main [class.min-h-screen]="navbarVisible()" [class.h-screen]="!navbarVisible()" class="bg-[var(--gradient-bg)]">
       <router-outlet></router-outlet>
     </main>
   `
@@ -42,9 +40,5 @@ export class AppComponent implements OnInit, OnDestroy {
 
   private updateNavbar(): void {
     this.navbarVisible.set(!this.router.url.startsWith('/meeting'));
-  }
-
-  showNavbar(): boolean {
-    return this.navbarVisible();
   }
 }

@@ -16,7 +16,7 @@
               <input pInputText type="text" [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)"
                 placeholder="Search participants..." class="w-full" />
             </p-iconfield>
-            @for (participant of getFilteredParticipants(); track participant.id) {
+            @for (participant of filteredParticipants(); track participant.id) {
             <div class="flex items-center justify-between p-3 rounded-lg surface-ground">
               <div class="flex items-center gap-3">
                 <p-avatar [label]="participant.displayName.charAt(0).toUpperCase()"
@@ -30,11 +30,11 @@
                 </div>
               </div>
               @if (isHost && participant.id !== currentUserId) {
-              <p-button label="Kick" severity="danger" size="small" [text]="true" (onClick)="onKick(participant.id)" [disabled]="pendingKicks.includes(participant.id)" />
+              <p-button label="Kick" severity="danger" size="small" [text]="true" (onClick)="kick.emit(participant.id)" [disabled]="pendingKicks.includes(participant.id)" />
               }
             </div>
             }
-            @if (getFilteredParticipants().length === 0) {
+            @if (filteredParticipants().length === 0) {
             <p class="text-center py-8 text-muted-color">No participants found</p>
             }
           </div>
@@ -47,7 +47,7 @@
               <input pInputText type="text" [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)"
                 placeholder="Search requests..." class="w-full" />
             </p-iconfield>
-            @for (request of getFilteredRequests(); track request.userId) {
+            @for (request of filteredRequests(); track request.userId) {
             <div class="flex flex-col gap-2 p-3 rounded-lg surface-ground">
               <div class="flex justify-between items-center">
                 <span class="font-medium">{{ request.displayName }}</span>
@@ -55,19 +55,19 @@
               </div>
               <div class="flex gap-2">
                 <p-button label="Approve" severity="success" size="small" class="flex-1"
-                  (onClick)="onApprove(request.userId)" />
+                  (onClick)="approve.emit(request.userId)" />
                 <p-button label="Deny" severity="danger" size="small" class="flex-1"
-                  (onClick)="onDeny(request.userId)" />
+                  (onClick)="deny.emit(request.userId)" />
               </div>
             </div>
             }
-            @if (getFilteredRequests().length === 0 && isHost) {
+            @if (filteredRequests().length === 0 && isHost) {
             <p class="text-center py-8 text-muted-color">No pending requests</p>
             }
-            @if (getFilteredRequests().length > 1 && isHost) {
+            @if (filteredRequests().length > 1 && isHost) {
             <div class="flex gap-2 mt-2">
-              <p-button label="Approve All" severity="success" class="flex-1" (onClick)="onApproveAll()" />
-              <p-button label="Deny All" severity="danger" class="flex-1" (onClick)="onDenyAll()" />
+              <p-button label="Approve All" severity="success" class="flex-1" (onClick)="approveAll.emit()" />
+              <p-button label="Deny All" severity="danger" class="flex-1" (onClick)="denyAll.emit()" />
             </div>
             }
           </div>
@@ -79,17 +79,17 @@
               <input pInputText type="text" [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)"
                 placeholder="Search banned users..." class="w-full" />
             </p-iconfield>
-            @for (userId of getFilteredBanList(); track userId) {
+            @for (userId of filteredBanList(); track userId) {
             <div class="flex items-center justify-between p-3 rounded-lg surface-ground">
               <span class="text-sm truncate font-mono">{{ userId }}</span>
-              <p-button label="Unban" severity="warn" size="small" (onClick)="onUnban(userId)" />
+              <p-button label="Unban" severity="warn" size="small" (onClick)="unban.emit(userId)" />
             </div>
             }
-            @if (getFilteredBanList().length === 0) {
+            @if (filteredBanList().length === 0) {
             <p class="text-center py-8 text-muted-color">No banned users</p>
             }
-            @if (getFilteredBanList().length > 0) {
-            <p-button label="Unban All" severity="warn" class="w-full mt-2" (onClick)="onUnbanAll()" />
+            @if (filteredBanList().length > 0) {
+            <p-button label="Unban All" severity="warn" class="w-full mt-2" (onClick)="unbanAll.emit()" />
             }
           </div>
         </p-tabpanel>

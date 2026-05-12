@@ -12,18 +12,9 @@
       </p-floatLabel>
 
       <p-button
-        label="Sign in with Google"
-        (onClick)="loginWithGoogle()"
+        label="Sign In"
+        (onClick)="login()"
         [disabled]="isLoading"
-        styleClass="w-full"
-      />
-
-      <p-button
-        label="Sign Up"
-        (onClick)="signUp()"
-        [disabled]="isLoading"
-        severity="secondary"
-        [text]="true"
         styleClass="w-full"
       />
     </div>

@@ -1,3 +1,6 @@
+import { User } from './user.model';
+export type { User };
+
 export type RoomType = 'meeting' | 'chat';
 export type EncryptionAlgorithm = 'AES-GCM-256' | 'AES-CBC-256' | 'ChaCha20-Poly1305' | 'none';
 
@@ -14,14 +17,6 @@ export interface Room {
   sharedFiles: SharedFile[];
   mediaPlayback?: MediaPlayback;
   createdAt: number;
-}
-
-export interface User {
-  id: string;
-  displayName: string;
-  peerId: string;
-  avatar?: string;
-  isHost?: boolean;
 }
 
 export interface Message {
@@ -50,14 +45,7 @@ export interface SharedFile {
   timestamp: number;
 }
 
-export interface SharedFileMetadata {
-  id: string;
-  name: string;
-  size: number;
-  mimeType: string;
-  senderId: string;
-  timestamp: number;
-}
+export type SharedFileMetadata = Omit<SharedFile, 'data'>;
 
 export interface MediaPlayback {
   url: string;

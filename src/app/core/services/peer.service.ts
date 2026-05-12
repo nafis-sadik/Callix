@@ -114,19 +114,19 @@ export class PeerService {
     const conn = this.dataConnections.get(peerId);
     if (!conn) throw new Error(`No connection to peer ${peerId}`);
 
-    if (message.encrypted) {
-      const encryptedPayload = await this.encryptionService.encrypt(
-        typeof message.payload === 'string' ? message.payload : JSON.stringify(message.payload)
+    const msg = { ...message };
+    if (msg.encrypted) {
+      msg.payload = await this.encryptionService.encrypt(
+        typeof msg.payload === 'string' ? msg.payload : JSON.stringify(msg.payload)
       );
-      message.payload = encryptedPayload;
     }
 
-    conn.send(JSON.stringify(message));
+    conn.send(JSON.stringify(msg));
   }
 
   async broadcastMessage(message: PeerMessage): Promise<void> {
-    const promises = Array.from(this.dataConnections.keys()).map(
-      peerId => this.sendMessage(peerId, { ...message })
+    const promises = Array.from(this.dataConnections.keys(), peerId =>
+      this.sendMessage(peerId, { ...message, payload: { ...message.payload } })
     );
     await Promise.allSettled(promises);
   }
@@ -171,7 +171,7 @@ export class PeerService {
 
   closeMediaConnections(): void {
     this.mediaConnections.forEach((call) => {
-      try { call.close(); } catch (_) {}
+      try { call.close(); } catch { /* connection may already be closed */ }
     });
     this.mediaConnections.clear();
     this.remoteStreams.clear();

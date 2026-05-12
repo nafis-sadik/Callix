@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { ThemeToggleComponent } from '../theme-toggle/theme-toggle.component';
@@ -8,6 +8,7 @@ import { TooltipModule } from 'primeng/tooltip';
   selector: 'app-navbar',
   standalone: true,
   imports: [RouterLink, ThemeToggleComponent, TooltipModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <nav class="glass-card rounded-none border-x-0 border-t-0 sticky top-0 z-50">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -17,7 +18,7 @@ import { TooltipModule } from 'primeng/tooltip';
           </a>
           <div class="flex items-center gap-4">
             <span class="text-sm font-medium hidden sm:block" style="color: var(--color-text-primary);">
-              {{ authService.currentUser()?.displayName || 'User' }}
+              {{ displayName() }}
             </span>
             <app-theme-toggle></app-theme-toggle>
             <button
@@ -34,8 +35,9 @@ import { TooltipModule } from 'primeng/tooltip';
   `
 })
 export class NavbarComponent {
-  authService = inject(AuthService);
+  private authService = inject(AuthService);
   private router = inject(Router);
+  protected displayName = computed(() => this.authService.currentUser()?.displayName || 'User');
 
   logout(): void {
     this.authService.logout();

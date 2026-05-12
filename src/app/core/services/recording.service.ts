@@ -8,9 +8,10 @@ export class RecordingService {
 
   startRecording(stream: MediaStream): void {
     this.recordedChunks = [];
-    this.mediaRecorder = new MediaRecorder(stream, {
-      mimeType: 'video/webm;codecs=vp9'
-    });
+    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+      ? 'video/webm;codecs=vp9'
+      : 'video/webm';
+    this.mediaRecorder = new MediaRecorder(stream, { mimeType });
 
     this.mediaRecorder.ondataavailable = (event) => {
       if (event.data.size > 0) {
@@ -23,12 +24,12 @@ export class RecordingService {
   }
 
   stopRecording(): Promise<Blob | null> {
-    if (!this.mediaRecorder) return Promise.resolve(null);
+    if (!this.mediaRecorder || this.mediaRecorder.state === 'inactive') return Promise.resolve(null);
 
     return new Promise((resolve) => {
       const recorder = this.mediaRecorder!;
       recorder.onstop = () => {
-        const blob = new Blob(this.recordedChunks, { type: 'video/webm' });
+        const blob = new Blob(this.recordedChunks, { type: recorder.mimeType });
         this.recordedChunks = [];
         resolve(blob);
       };

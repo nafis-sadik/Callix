@@ -224,7 +224,7 @@ export class RoomService {
     });
 
     this.updateParticipantsFromRoom(room);
-    this.currentRoom.set(room);
+    this.refreshCurrentRoom();
     this.updatePendingRequests(room);
 
     const user = this.authService.currentUser();
@@ -254,7 +254,7 @@ export class RoomService {
 
     room.pendingRequests.delete(userId);
     this.updatePendingRequests(room);
-    this.currentRoom.set(room);
+    this.refreshCurrentRoom();
 
     const user = this.authService.currentUser();
     const response = this.createPeerMessage('join-response', { approved: false, roomId: room.id }, user?.id || '');
@@ -306,7 +306,7 @@ export class RoomService {
 
     room.banList.add(userId);
     this.banList.set(Array.from(room.banList));
-    this.currentRoom.set(room);
+    this.refreshCurrentRoom();
   }
 
   unbanUser(userId: string): void {
@@ -315,7 +315,7 @@ export class RoomService {
 
     room.banList.delete(userId);
     this.banList.set(Array.from(room.banList));
-    this.currentRoom.set(room);
+    this.refreshCurrentRoom();
 
     if (this.isHost()) {
       const user = this.authService.currentUser();
@@ -330,7 +330,7 @@ export class RoomService {
 
     room.banList.clear();
     this.banList.set([]);
-    this.currentRoom.set(room);
+    this.refreshCurrentRoom();
 
     if (this.isHost()) {
       const user = this.authService.currentUser();
@@ -393,7 +393,7 @@ export class RoomService {
     if (room) {
       room.messages.push(message);
       this.messages.set([...room.messages]);
-      this.currentRoom.set(room);
+      this.refreshCurrentRoom();
     }
 
     if (!fromPeer && type !== 'system') {
@@ -421,7 +421,7 @@ export class RoomService {
       room.sharedFiles.push(file);
       this.messages.set([...room.messages]);
       this.sharedFiles.set([...room.sharedFiles]);
-      this.currentRoom.set(room);
+      this.refreshCurrentRoom();
     }
 
     const user = this.authService.currentUser();
@@ -455,7 +455,7 @@ export class RoomService {
 
     room.pendingRequests.set(payload.userId, request);
     this.updatePendingRequests(room);
-    this.currentRoom.set(room);
+    this.refreshCurrentRoom();
   }
 
   private handleJoinResponse(message: PeerMessage): void {
@@ -550,6 +550,21 @@ export class RoomService {
     this.completeKick(userId);
   }
 
+  private refreshCurrentRoom(): void {
+    this.currentRoom.update(r => {
+      if (!r) return r;
+      return {
+        ...r,
+        participants: new Map(r.participants),
+        banList: new Set(r.banList),
+        pendingRequests: new Map(r.pendingRequests),
+        messages: [...r.messages],
+        sharedFiles: [...r.sharedFiles],
+        mediaPlayback: r.mediaPlayback ? { ...r.mediaPlayback } : undefined
+      };
+    });
+  }
+
   private clearKickTimeout(userId: string): void {
     const timeoutId = this.kickTimeouts.get(userId);
     if (timeoutId) {
@@ -582,7 +597,7 @@ export class RoomService {
 
     this.banUser(userId);
     this.updateParticipantsFromRoom(room);
-    this.currentRoom.set(room);
+    this.refreshCurrentRoom();
 
     const user = this.authService.currentUser();
     const updateMsg = this.createPeerMessage('participant-update', {
@@ -697,7 +712,7 @@ export class RoomService {
           room.participants.set(p.id, p);
         }
       });
-      this.currentRoom.set(room);
+      this.refreshCurrentRoom();
     }
   }
 

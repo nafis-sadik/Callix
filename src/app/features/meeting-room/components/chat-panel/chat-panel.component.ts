@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, signal, ViewEncapsulation } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, Output, EventEmitter, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DrawerModule } from 'primeng/drawer';
@@ -18,7 +18,7 @@ import { Message, SharedFile } from '../../../../core/models/room.model';
   ],
   templateUrl: './chat-panel.component.html',
   styleUrl: './chat-panel.component.scss',
-  encapsulation: ViewEncapsulation.None,
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ChatPanelComponent {
   @Input() show = false;
@@ -33,7 +33,8 @@ export class ChatPanelComponent {
 
   messageText = signal('');
 
-  readonly EMOJIS = ['😊', '😂', '❤️', '👍', '🎉', '🔥', '👋', '😎'];
+  static readonly EMOJIS = ['😊', '😂', '❤️', '👍', '🎉', '🔥', '👋', '😎'];
+  protected readonly EMOJIS = ChatPanelComponent.EMOJIS;
 
   onVisibleChange(visible: boolean): void {
     if (!visible) {
@@ -46,13 +47,6 @@ export class ChatPanelComponent {
     if (!text) return;
     this.sendMessage.emit(text);
     this.messageText.set('');
-  }
-
-  onSendOnEnter(event: KeyboardEvent): void {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault();
-      this.onSend();
-    }
   }
 
   insertEmoji(emoji: string): void {

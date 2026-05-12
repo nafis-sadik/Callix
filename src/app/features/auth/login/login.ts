@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -14,6 +14,7 @@ import { FloatLabelModule } from 'primeng/floatlabel';
   imports: [CommonModule, FormsModule, InputTextModule, ButtonModule, FloatLabelModule],
   templateUrl: './login.html',
   styleUrl: './login.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LoginComponent {
   private authService = inject(AuthService);
@@ -23,26 +24,22 @@ export class LoginComponent {
   displayName = '';
   isLoading = false;
 
-  loginWithGoogle(): void {
+  login(): void {
     if (!this.displayName.trim()) {
       this.alertService.showError('Error', 'Please enter a display name');
       return;
     }
-    
+
     this.isLoading = true;
-    const userId = this.authService.generateUserId();
+    const userId = crypto.randomUUID();
     const user = {
       id: userId,
       displayName: this.displayName.trim(),
       peerId: userId
     };
-    
+
     this.authService.setUser(user);
     this.isLoading = false;
     this.router.navigate(['/home']);
-  }
-
-  signUp(): void {
-    this.loginWithGoogle(); // Same flow for demo
   }
 }

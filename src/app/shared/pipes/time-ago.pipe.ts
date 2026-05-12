@@ -1,6 +1,6 @@
 import { Pipe, PipeTransform } from '@angular/core';
 
-@Pipe({ name: 'timeAgo', standalone: true })
+@Pipe({ name: 'timeAgo', standalone: true, pure: false })
 export class TimeAgoPipe implements PipeTransform {
   transform(value: number): string {
     const now = Date.now();

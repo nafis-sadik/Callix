@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { ThemeService } from '../../../core/services/theme.service';
 import { TooltipModule } from 'primeng/tooltip';
 import { SelectButtonModule } from 'primeng/selectbutton';
@@ -8,10 +8,11 @@ import { FormsModule } from '@angular/forms';
   selector: 'app-theme-toggle',
   standalone: true,
   imports: [TooltipModule, SelectButtonModule, FormsModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p-selectButton
       [options]="themeOptions"
-      [(ngModel)]="currentTheme"
+      [(ngModel)]="theme"
       (onChange)="onThemeChange($event.value)"
       optionValue="value"
       styleClass="p-selectbutton-sm">
@@ -22,17 +23,14 @@ import { FormsModule } from '@angular/forms';
   `
 })
 export class ThemeToggleComponent {
-  themeService = inject(ThemeService);
+  private themeService = inject(ThemeService);
+  protected theme = this.themeService.theme;
 
   themeOptions = [
     { label: 'Light', icon: 'pi pi-sun', value: 'light' },
     { label: 'Dark', icon: 'pi pi-moon', value: 'dark' },
     { label: 'System', icon: 'pi pi-desktop', value: 'system' }
   ];
-
-  get currentTheme(): string {
-    return this.themeService.theme();
-  }
 
   onThemeChange(theme: string): void {
     this.themeService.setTheme(theme as 'light' | 'dark' | 'system');

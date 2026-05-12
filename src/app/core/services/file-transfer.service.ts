@@ -46,9 +46,7 @@ export class FileTransferService {
       encrypted: false
     };
 
-    for (const peerId of peerIds) {
-      await this.peerService.sendMessage(peerId, metaMsg);
-    }
+    await Promise.all(peerIds.map(peerId => this.peerService.sendMessage(peerId, metaMsg)));
 
     const buffer = await file.arrayBuffer();
     let offset = 0;
@@ -68,9 +66,7 @@ export class FileTransferService {
         encrypted: false
       };
 
-      for (const peerId of peerIds) {
-        await this.peerService.sendMessage(peerId, chunkMsg);
-      }
+      await Promise.all(peerIds.map(peerId => this.peerService.sendMessage(peerId, chunkMsg)));
 
       offset += this.CHUNK_SIZE;
       chunkIndex++;
@@ -87,17 +83,13 @@ export class FileTransferService {
       encrypted: false
     };
 
-    for (const peerId of peerIds) {
-      await this.peerService.sendMessage(peerId, completeMsg);
-    }
+    await Promise.all(peerIds.map(peerId => this.peerService.sendMessage(peerId, completeMsg)));
 
     this.updateProgress(fileId, 100);
   }
 
   private updateProgress(fileId: string, progress: number): void {
-    const current = this.transferProgress();
-    current[fileId] = progress;
-    this.transferProgress.set({ ...current });
+    this.transferProgress.update(current => ({ ...current, [fileId]: progress }));
   }
 
   handleFileMeta(payload: any): void {
@@ -158,9 +150,7 @@ export class FileTransferService {
       timestamp: pending.timestamp
     };
 
-    const current = this.receivedFiles();
-    current.push(sharedFile);
-    this.receivedFiles.set([...current]);
+    this.receivedFiles.update(current => [...current, sharedFile]);
 
     this.onFileReceived.set(sharedFile);
     this.pendingReceptions.delete(fileId);

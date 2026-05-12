@@ -90,7 +90,7 @@ export class EncryptionService {
     return this.roomKey;
   }
 
-  async   deriveRoomKeyFromShared(sharedSecret: ArrayBuffer): Promise<CryptoKey> {
+  async deriveRoomKeyFromShared(sharedSecret: ArrayBuffer): Promise<CryptoKey> {
     return crypto.subtle.importKey(
       'raw',
       sharedSecret,
@@ -134,9 +134,11 @@ export class EncryptionService {
   }
 
   private bufferToBase64(buffer: Uint8Array): string {
+    const chunkSize = 8192;
     let binary = '';
-    for (let i = 0; i < buffer.length; i++) {
-      binary += String.fromCharCode(buffer[i]);
+    for (let i = 0; i < buffer.length; i += chunkSize) {
+      const chunk = buffer.subarray(i, i + chunkSize);
+      binary += String.fromCharCode.apply(null, chunk as unknown as number[]);
     }
     return btoa(binary);
   }

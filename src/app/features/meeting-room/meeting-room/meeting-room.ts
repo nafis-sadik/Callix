@@ -1,7 +1,8 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
-import { CommonModule, SlicePipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { Subject, takeUntil } from 'rxjs';
 import { RoomService } from '../../../core/services/room.service';
 import { PeerService } from '../../../core/services/peer.service';
 import { AuthService } from '../../../core/services/auth.service';
@@ -52,8 +53,10 @@ export interface VideoSettings {
   ],
   templateUrl: './meeting-room.html',
   styleUrl: './meeting-room.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class MeetingRoomComponent implements OnInit {
+export class MeetingRoomComponent implements OnInit, OnDestroy {
+  private destroy$ = new Subject<void>();
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   roomService = inject(RoomService);
@@ -89,34 +92,52 @@ export class MeetingRoomComponent implements OnInit {
   screenStream = signal<MediaStream | null>(null);
   remoteStreams = signal<{ peerId: string, stream: MediaStream }[]>([]);
 
-  constructor() {
-    this.peerService.onRemoteStream$.subscribe(({ peerId, stream }) => {
-      const current = this.remoteStreams();
-      const existing = current.findIndex(r => r.peerId === peerId);
-      if (existing >= 0) {
-        current[existing] = { peerId, stream };
-      } else {
-        current.push({ peerId, stream });
-      }
-      this.remoteStreams.set([...current]);
+  protected readonly currentUserId = computed(() => this.authService.currentUser()?.id ?? '');
+
+  protected readonly bigScreenStream = computed(() => {
+    const pinned = this.pinnedParticipantId();
+    if (pinned) {
+      const found = this.remoteStreams().find(r => r.peerId === pinned);
+      if (found) return found.stream;
+    }
+    const active = this.activeSpeakerId();
+    if (active) {
+      const found = this.remoteStreams().find(r => r.peerId === active);
+      if (found) return found.stream;
+    }
+    const streams = this.remoteStreams();
+    return streams.length > 0 ? streams[0].stream : null;
+  });
+
+  ngOnInit(): void {
+    this.roomId.set(this.route.snapshot.paramMap.get('roomId') || '');
+    this.isHost.set(this.roomService.isHost());
+
+    this.peerService.onRemoteStream$.pipe(takeUntil(this.destroy$)).subscribe(({ peerId, stream }) => {
+      this.remoteStreams.update(current => {
+        const existing = current.findIndex(r => r.peerId === peerId);
+        if (existing >= 0) {
+          const updated = [...current];
+          updated[existing] = { peerId, stream };
+          return updated;
+        }
+        return [...current, { peerId, stream }];
+      });
     });
 
-    this.peerService.onIncomingCall$.subscribe(({ peerId, call }) => {
+    this.peerService.onIncomingCall$.pipe(takeUntil(this.destroy$)).subscribe(({ call }) => {
       const stream = this.localStream();
       if (stream) {
         this.peerService.answerCall(call, stream);
       }
     });
-  }
 
-  currentUserId(): string | undefined {
-    return this.authService.currentUser()?.id;
-  }
-
-  ngOnInit(): void {
-    this.roomId.set(this.route.snapshot.paramMap.get('roomId') || '');
-    this.isHost.set(this.roomService.isHost());
     this.initMedia();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   async initMedia(): Promise<void> {
@@ -205,23 +226,6 @@ export class MeetingRoomComponent implements OnInit {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
     } catch { }
-  }
-
-  getBigScreenStream(): MediaStream | null {
-    const pinned = this.pinnedParticipantId();
-    if (pinned) {
-      const found = this.remoteStreams().find(r => r.peerId === pinned);
-      if (found) return found.stream;
-    }
-    const active = this.activeSpeakerId();
-    if (active) {
-      const found = this.remoteStreams().find(r => r.peerId === active);
-      if (found) return found.stream;
-    }
-    if (this.remoteStreams().length > 0) {
-      return this.remoteStreams()[0].stream;
-    }
-    return null;
   }
 
   toggleMic(): void {
@@ -400,9 +404,9 @@ export class MeetingRoomComponent implements OnInit {
     }
   }
 
-  closeRoomInfo = () => {
+  closeRoomInfo(): void {
     this.showRoomInfo.set(false);
-  };
+  }
 
   getFileById = (id: string): SharedFile | undefined => {
     return this.fileTransferService.getFileById(id);

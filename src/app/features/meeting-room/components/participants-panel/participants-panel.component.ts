@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, signal, ViewEncapsulation } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, Output, EventEmitter, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DrawerModule } from 'primeng/drawer';
@@ -21,13 +21,13 @@ import { User, JoinRequest } from '../../../../core/models/room.model';
   ],
   templateUrl: './participants-panel.component.html',
   styleUrl: './participants-panel.component.scss',
-  encapsulation: ViewEncapsulation.None,
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ParticipantsPanelComponent {
   @Input() show = false;
-  @Input() participants: User[] = [];
-  @Input() requests: JoinRequest[] = [];
-  @Input() banList: string[] = [];
+  @Input() set participants(v: User[]) { this.#participantsSig.set(v); }
+  @Input() set requests(v: JoinRequest[]) { this.#requestsSig.set(v); }
+  @Input() set banList(v: string[]) { this.#banListSig.set(v); }
   @Input() isHost = false;
   @Input() currentUserId = '';
   @Input() pendingKicks: string[] = [];
@@ -40,58 +40,33 @@ export class ParticipantsPanelComponent {
   @Output() unbanAll = new EventEmitter<void>();
   @Output() close = new EventEmitter<void>();
 
+  readonly #participantsSig = signal<User[]>([]);
+  readonly #requestsSig = signal<JoinRequest[]>([]);
+  readonly #banListSig = signal<string[]>([]);
   searchQuery = signal('');
+
+  protected readonly filteredParticipants = computed(() => {
+    const q = this.searchQuery().toLowerCase();
+    const items = this.#participantsSig();
+    return !q ? items : items.filter(p => p.displayName.toLowerCase().includes(q));
+  });
+
+  protected readonly filteredRequests = computed(() => {
+    const q = this.searchQuery().toLowerCase();
+    const items = this.#requestsSig();
+    return !q ? items : items.filter(r => r.displayName.toLowerCase().includes(q));
+  });
+
+  protected readonly filteredBanList = computed(() => {
+    const q = this.searchQuery().toLowerCase();
+    const items = this.#banListSig();
+    return !q ? items : items.filter(id => id.toLowerCase().includes(q));
+  });
 
   onVisibleChange(visible: boolean): void {
     if (!visible) {
       this.close.emit();
       this.searchQuery.set('');
     }
-  }
-
-  getFilteredParticipants(): User[] {
-    const q = this.searchQuery().toLowerCase();
-    if (!q) return this.participants;
-    return this.participants.filter(p => p.displayName.toLowerCase().includes(q));
-  }
-
-  getFilteredRequests(): JoinRequest[] {
-    const q = this.searchQuery().toLowerCase();
-    if (!q) return this.requests;
-    return this.requests.filter(r => r.displayName.toLowerCase().includes(q));
-  }
-
-  getFilteredBanList(): string[] {
-    const q = this.searchQuery().toLowerCase();
-    if (!q) return this.banList;
-    return this.banList.filter(id => id.toLowerCase().includes(q));
-  }
-
-  onKick(userId: string): void {
-    this.kick.emit(userId);
-  }
-
-  onApprove(userId: string): void {
-    this.approve.emit(userId);
-  }
-
-  onDeny(userId: string): void {
-    this.deny.emit(userId);
-  }
-
-  onApproveAll(): void {
-    this.approveAll.emit();
-  }
-
-  onDenyAll(): void {
-    this.denyAll.emit();
-  }
-
-  onUnban(userId: string): void {
-    this.unban.emit(userId);
-  }
-
-  onUnbanAll(): void {
-    this.unbanAll.emit();
   }
 }
