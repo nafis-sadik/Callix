@@ -5,6 +5,7 @@ import { EncryptionService } from './encryption.service';
 import { AuthService } from './auth.service';
 import { FileTransferService } from './file-transfer.service';
 import { AlertService } from './alert.service';
+import { LoggerService } from './logger.service';
 import { User, Room, RoomType, EncryptionAlgorithm, JoinRequest, Message, SharedFile, HistorySyncPayload } from '../models/room.model';
 import { PeerMessage, PeerMessageType } from '../models/peer-message.model';
 import { v4 as uuidv4 } from 'uuid';
@@ -34,6 +35,7 @@ export class RoomService {
   private authService = inject(AuthService);
   private fileTransferService = inject(FileTransferService);
   private alertService = inject(AlertService);
+  private logger = inject(LoggerService);
   private kickTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
   private isBeingKicked = false;
 
@@ -57,6 +59,17 @@ export class RoomService {
     this.peerService.onDisconnected$.subscribe((peerId) => {
       const room = this.currentRoom();
       if (!room) return;
+      
+      if (this.isHost()) {
+        const disconnectedParticipant = Array.from(room.participants.values()).find(p => p.peerId === peerId);
+        if (disconnectedParticipant) {
+          this.logger.disconnection('HOST', disconnectedParticipant.displayName || peerId, {
+            userId: disconnectedParticipant.id,
+            peerId: peerId
+          });
+        }
+      }
+      
       if (peerId === room.id) {
         this.handleKickedImplicit();
       }
@@ -146,6 +159,8 @@ export class RoomService {
       createdAt: Date.now()
     };
 
+    this.logger.hostCreatedRoom(roomId, name);
+
     this.peerService.destroy();
     this.peerService.initializePeer(roomId);
 
@@ -159,12 +174,14 @@ export class RoomService {
     this.currentRoom.set(room);
     this.isHost.set(true);
     this.updateParticipantsFromRoom(room);
+    this.logger.participantUpdate(Array.from(room.participants.values()));
 
     return room;
   }
 
   async joinRoom(roomId: string): Promise<void> {
     try {
+      this.logger.guestJoinRequestSent(roomId);
       await this.peerService.connectToPeer(roomId);
 
       const user = this.authService.currentUser();
@@ -178,6 +195,10 @@ export class RoomService {
 
       await this.peerService.sendMessage(roomId, joinRequest);
     } catch (err) {
+      this.logger.log('error', 'Failed to join room', { 
+        roomId, 
+        error: err instanceof Error ? err.message : String(err) 
+      }, { group: true });
       console.error('Failed to join room:', err);
       throw err;
     }
@@ -191,6 +212,7 @@ export class RoomService {
 
       setTimeout(() => {
         if (this.joinRequests.has(roomId)) {
+          this.logger.guestJoinDenied(roomId, 'timeout');
           this.joinRequests.delete(roomId);
           resolve({ approved: false });
         }
@@ -216,6 +238,8 @@ export class RoomService {
     const request = room.pendingRequests.get(userId);
     if (!request) return;
 
+    this.logger.hostApprovedJoin(request.userId, request.displayName);
+
     room.pendingRequests.delete(userId);
     room.participants.set(userId, {
       id: request.userId,
@@ -226,6 +250,7 @@ export class RoomService {
     this.updateParticipantsFromRoom(room);
     this.refreshCurrentRoom();
     this.updatePendingRequests(room);
+    this.logger.participantUpdate(Array.from(room.participants.values()));
 
     const user = this.authService.currentUser();
     const response = this.createPeerMessage('join-response', {
@@ -251,6 +276,8 @@ export class RoomService {
 
     const request = room.pendingRequests.get(userId);
     if (!request) return;
+
+    this.logger.hostDeniedJoin(request.userId, request.displayName);
 
     room.pendingRequests.delete(userId);
     this.updatePendingRequests(room);
@@ -285,11 +312,15 @@ export class RoomService {
     const participant = room.participants.get(userId);
     if (!participant) return;
 
+    this.logger.kickInitiated('HOST', userId);
     this.pendingKicks.update(s => [...s, userId]);
 
     const user = this.authService.currentUser();
     const kickMsg = this.createPeerMessage('kick', { userId }, user?.id || '');
     this.peerService.sendMessage(participant.peerId, kickMsg).catch(err => {
+      this.logger.log('error', 'Failed to send kick message', { 
+        userId, error: err instanceof Error ? err.message : String(err) 
+      }, { group: true });
       console.error('Failed to send kick message:', err);
       this.completeKick(userId);
     });
@@ -306,6 +337,7 @@ export class RoomService {
 
     room.banList.add(userId);
     this.banList.set(Array.from(room.banList));
+    this.logger.banAdded('HOST', userId, Array.from(room.banList));
     this.refreshCurrentRoom();
   }
 
@@ -314,12 +346,14 @@ export class RoomService {
     if (!room) return;
 
     room.banList.delete(userId);
-    this.banList.set(Array.from(room.banList));
+    const updatedBanList = Array.from(room.banList);
+    this.banList.set(updatedBanList);
+    this.logger.banRemoved('HOST', userId, updatedBanList);
     this.refreshCurrentRoom();
 
     if (this.isHost()) {
       const user = this.authService.currentUser();
-      const msg = this.createPeerMessage('ban-list-sync', { banList: Array.from(room.banList) }, user?.id || '');
+      const msg = this.createPeerMessage('ban-list-sync', { banList: updatedBanList }, user?.id || '');
       this.peerService.broadcastMessage(msg).catch(err => console.error('Failed to broadcast ban list:', err));
     }
   }
@@ -328,8 +362,13 @@ export class RoomService {
     const room = this.currentRoom();
     if (!room) return;
 
+    const oldBanList = Array.from(room.banList);
     room.banList.clear();
     this.banList.set([]);
+    this.logger.log('ban', 'HOST UNBANNED ALL users', { 
+      previouslyBanned: oldBanList,
+      count: oldBanList.length
+    }, { group: true });
     this.refreshCurrentRoom();
 
     if (this.isHost()) {
@@ -343,10 +382,15 @@ export class RoomService {
     const room = this.currentRoom();
     if (!room) return;
 
-    if (this.isHost()) {
-      const user = this.authService.currentUser();
-      const destroyMsg = this.createPeerMessage('room-destroyed', { roomId: room.id }, user?.id || '');
+    const user = this.authService.currentUser();
+    const role = this.isHost() ? 'HOST' : 'GUEST';
+    this.logger.userLeftRoom(user?.id || 'unknown', user?.displayName || 'Unknown', role);
 
+    if (this.isHost()) {
+      const participantCount = room.participants.size - 1;
+      this.logger.hostDestroyedRoom(room.id, participantCount);
+      
+      const destroyMsg = this.createPeerMessage('room-destroyed', { roomId: room.id }, user?.id || '');
       this.peerService.broadcastMessage(destroyMsg).catch(err => console.error('Failed to broadcast room destroy:', err));
       this.peerService.destroy();
     } else {
@@ -438,8 +482,10 @@ export class RoomService {
     if (!room) return;
 
     const payload = message.payload;
+    this.logger.incomingJoinRequest(payload.userId, payload.displayName, payload.peerId);
 
     if (room.banList.has(payload.userId)) {
+      this.logger.bannedUserBlocked(payload.userId, payload.peerId);
       const user = this.authService.currentUser();
       const response = this.createPeerMessage('join-response', { approved: false, reason: 'banned' }, user?.id || '');
       this.peerService.sendMessage(payload.peerId, response).catch(err => console.error('Failed to send ban response:', err));
@@ -463,6 +509,7 @@ export class RoomService {
     const roomId = payload.roomId;
 
     if (!payload.approved) {
+      this.logger.guestJoinDenied(roomId, payload.reason || 'denied by host');
       const request = roomId ? this.joinRequests.get(roomId) : null;
       if (request) {
         this.joinRequests.delete(roomId);
@@ -470,6 +517,9 @@ export class RoomService {
       }
       return;
     }
+
+    this.logger.guestJoinApproved(payload.roomId, payload.roomName);
+    this.logger.guestJoinedAsGuest(payload.roomId, payload.roomName, payload.hostId || message.senderId);
 
     const user = this.authService.currentUser();
     if (!user) return;
@@ -498,6 +548,7 @@ export class RoomService {
     this.currentRoom.set(room);
     this.isHost.set(false);
     this.updateParticipantsFromRoom(room);
+    this.logger.participantUpdate(Array.from(room.participants.values()));
     this.addMessage('You have joined the room', 'system');
 
     const request = this.joinRequests.get(room.id);
@@ -510,6 +561,8 @@ export class RoomService {
   private async handleKicked(message: PeerMessage): Promise<void> {
     if (this.isBeingKicked) return;
     this.isBeingKicked = true;
+
+    this.logger.kickReceived('HOST');
 
     const room = this.currentRoom();
     if (room) {
@@ -532,6 +585,10 @@ export class RoomService {
     if (this.isBeingKicked) return;
     this.isBeingKicked = true;
 
+    this.logger.log('kick', 'Implicit kick detected (host disconnected)', { 
+      reason: 'connection to host lost'
+    }, { group: true });
+
     const room = this.currentRoom();
     if (!room) return;
     await Promise.race([
@@ -546,6 +603,9 @@ export class RoomService {
 
   private handleKickConfirmation(message: PeerMessage): void {
     const { userId } = message.payload;
+    this.logger.log('kick', `Kick confirmation received from: ${userId}`, { 
+      userId, status: 'completing kick'
+    }, { group: true });
     this.clearKickTimeout(userId);
     this.completeKick(userId);
   }
@@ -577,6 +637,7 @@ export class RoomService {
     const room = this.currentRoom();
     if (!room) return;
     const banList: string[] = payload.banList || [];
+    this.logger.banListSynced('HOST', banList);
     room.banList = new Set(banList);
     this.banList.set(banList);
   }
@@ -596,7 +657,9 @@ export class RoomService {
     }
 
     this.banUser(userId);
+    this.logger.kickCompleted(userId, true);
     this.updateParticipantsFromRoom(room);
+    this.logger.participantUpdate(Array.from(room.participants.values()));
     this.refreshCurrentRoom();
 
     const user = this.authService.currentUser();
@@ -613,11 +676,13 @@ export class RoomService {
 
   private handleParticipantUpdate(payload: any): void {
     if (payload && Array.isArray(payload.participants)) {
+      this.logger.participantUpdate(payload.participants);
       this.participants.set(payload.participants);
     }
   }
 
   private handleRoomDestroyed(): void {
+    this.logger.roomDestroyedByHost();
     this.alertService.showRoomDestroyed();
     this.resetRoom();
     this.encryptionService.clearKeys();
@@ -638,6 +703,7 @@ export class RoomService {
     const { publicKey } = message.payload;
     if (!publicKey) return;
 
+    this.logger.keyExchangeInitiated(message.senderId);
     const hostPeerId = room.id;
 
     Promise.resolve().then(async () => {
@@ -645,12 +711,17 @@ export class RoomService {
       const hostPublicKey = await this.encryptionService.importPublicKey(publicKey);
       const sharedSecret = await this.encryptionService.deriveSharedSecret(hostPublicKey);
       await this.encryptionService.deriveRoomKeyFromShared(sharedSecret);
+      this.logger.keyExchangeComplete(message.senderId);
 
       const myPublicKey = await this.encryptionService.exportPublicKey();
       const response = this.createPeerMessage('key-exchange-response', { publicKey: myPublicKey }, this.authService.currentUser()?.id || '');
       if (this.currentRoom()?.id !== hostPeerId) return;
       await this.peerService.sendMessage(hostPeerId, response);
     }).catch(err => {
+      this.logger.log('error', 'Key exchange failed', { 
+        peerId: message.senderId,
+        error: err instanceof Error ? err.message : String(err)
+      }, { group: true });
       console.error('Key exchange failed:', err);
     });
   }
@@ -665,17 +736,27 @@ export class RoomService {
       const peerPublicKey = await this.encryptionService.importPublicKey(publicKey);
       const sharedSecret = await this.encryptionService.deriveSharedSecret(peerPublicKey);
       await this.encryptionService.deriveRoomKeyFromShared(sharedSecret);
+      this.logger.keyExchangeComplete(message.senderId);
     }).catch(err => {
+      this.logger.log('error', 'Key exchange response failed', { 
+        peerId: message.senderId,
+        error: err instanceof Error ? err.message : String(err)
+      }, { group: true });
       console.error('Key exchange response failed:', err);
     });
   }
 
   private initiateKeyExchange(peerId: string): void {
+    this.logger.keyExchangeInitiated(peerId);
     this.encryptionService.generateKeyPair().then(async () => {
       const publicKey = await this.encryptionService.exportPublicKey();
       const msg = this.createPeerMessage('key-exchange', { peerId, publicKey }, this.authService.currentUser()?.id || '');
       await this.peerService.sendMessage(peerId, msg);
     }).catch(err => {
+      this.logger.log('error', 'Failed to initiate key exchange', { 
+        peerId,
+        error: err instanceof Error ? err.message : String(err)
+      }, { group: true });
       console.error('Failed to initiate key exchange:', err);
     });
   }
@@ -697,13 +778,16 @@ export class RoomService {
       participants: Array.from(room.participants.values())
     };
 
+    this.logger.historySyncReceived('HOST', syncPayload.messages.length, syncPayload.files.length);
     const msg = this.createPeerMessage('history-sync', syncPayload, this.authService.currentUser()?.id || '');
     this.peerService.sendMessage(peerId, msg).catch(err => console.error('Failed to send history sync:', err));
   }
 
   private handleHistorySync(payload: HistorySyncPayload): void {
+    this.logger.historySyncReceived('HOST', payload.messages?.length || 0, payload.files?.length || 0);
     this.messages.set(payload.messages);
     this.participants.set(payload.participants);
+    this.logger.participantUpdate(payload.participants);
 
     const room = this.currentRoom();
     if (room) {
@@ -721,13 +805,16 @@ export class RoomService {
     if (!room) return;
     room.banList.add(userId);
     this.banList.set(Array.from(room.banList));
+    this.logger.banAdded('HOST (via sync)', userId, Array.from(room.banList));
   }
 
   private removeFromBanList(userId: string): void {
     const room = this.currentRoom();
     if (!room) return;
     room.banList.delete(userId);
-    this.banList.set(Array.from(room.banList));
+    const updatedList = Array.from(room.banList);
+    this.banList.set(updatedList);
+    this.logger.banRemoved('HOST (via sync)', userId, updatedList);
   }
 
   private updateParticipantsFromRoom(room: Room): void {

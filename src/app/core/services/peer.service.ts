@@ -1,7 +1,8 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Subject } from 'rxjs';
 import Peer from 'peerjs';
 import { EncryptionService } from './encryption.service';
+import { LoggerService } from './logger.service';
 import { PeerMessage } from '../models/peer-message.model';
 
 @Injectable({ providedIn: 'root' })
@@ -19,6 +20,7 @@ export class PeerService {
   onDisconnected$ = new Subject<string>();
 
   private peerIdValue: string | null = null;
+  private logger = inject(LoggerService);
 
   get peerId(): string | null {
     return this.peerIdValue;
@@ -42,18 +44,21 @@ export class PeerService {
     this.peer.on('open', (id) => {
       this.peerIdValue = id;
       this.peerId$.next(id);
-      console.log('Peer connected with ID:', id);
+      this.logger.peerInitialized(id);
     });
 
     this.peer.on('connection', (conn) => {
+      this.logger.connectionAccepted('Local Peer', conn.peer, { connectionType: 'data' });
       this.handleIncomingDataConnection(conn);
     });
 
     this.peer.on('call', (call) => {
+      this.logger.mediaCallReceived(call.peer);
       this.onIncomingCall$.next({ peerId: call.peer, call });
     });
 
     this.peer.on('error', (err) => {
+      this.logger.log('error', 'Peer error', { error: err.message || String(err) }, { group: true });
       console.error('Peer error:', err);
     });
   }
@@ -61,19 +66,25 @@ export class PeerService {
   connectToPeer(peerId: string): Promise<void> {
     return new Promise((resolve, reject) => {
       if (!this.peer) {
-        reject(new Error('Peer not initialized'));
+        const err = new Error('Peer not initialized');
+        this.logger.log('error', 'connectToPeer failed', { error: err.message, peerId }, { group: true });
+        reject(err);
         return;
       }
 
+      this.logger.connection('Local Peer', peerId, { action: 'initiating connection' });
       const conn = this.peer.connect(peerId);
 
       conn.on('open', () => {
         this.dataConnections.set(peerId, conn);
         this.setupDataConnectionListeners(conn, peerId);
+        this.logger.connection('Local Peer', peerId, { status: 'connected', connectionType: 'data' });
+        this.logger.connectedPeersList(Array.from(this.dataConnections.keys()));
         resolve();
       });
 
       conn.on('error', (err: any) => {
+        this.logger.log('error', 'Connection failed', { peerId, error: err.message || String(err) }, { group: true });
         console.error('Connection error:', err);
         reject(err);
       });
@@ -83,6 +94,7 @@ export class PeerService {
   private handleIncomingDataConnection(conn: any): void {
     this.dataConnections.set(conn.peer, conn);
     this.setupDataConnectionListeners(conn, conn.peer);
+    this.logger.connectedPeersList(Array.from(this.dataConnections.keys()));
     this.onIncomingConnection$.next(conn.peer);
   }
 
@@ -94,25 +106,40 @@ export class PeerService {
           this.encryptionService.decrypt(message.payload).then(decrypted => {
             message.payload = JSON.parse(decrypted);
             message.encrypted = false;
+            this.logger.messageReceived(message.senderId || peerId, message.type, message.payload);
             this.onMessage$.next(message);
           });
         } else {
+          this.logger.messageReceived(message.senderId || peerId, message.type, message.payload);
           this.onMessage$.next(message);
         }
       } catch (err) {
+        this.logger.log('error', 'Error processing message', { 
+          peerId, error: err instanceof Error ? err.message : String(err) 
+        }, { group: true });
         console.error('Error processing message:', err);
       }
     });
 
     conn.on('close', () => {
       this.dataConnections.delete(peerId);
+      this.logger.disconnection('Local Peer', peerId, { 
+        connectionType: 'data', 
+        reason: 'connection closed by peer' 
+      });
+      this.logger.connectedPeersList(Array.from(this.dataConnections.keys()));
       this.onDisconnected$.next(peerId);
     });
   }
 
   async sendMessage(peerId: string, message: PeerMessage): Promise<void> {
     const conn = this.dataConnections.get(peerId);
-    if (!conn) throw new Error(`No connection to peer ${peerId}`);
+    if (!conn) {
+      this.logger.log('error', 'sendMessage failed - no connection', { peerId, messageType: message.type }, { group: true });
+      throw new Error(`No connection to peer ${peerId}`);
+    }
+
+    this.logger.messageSent(peerId, message.type, message.payload);
 
     const msg = { ...message };
     if (msg.encrypted) {
@@ -125,7 +152,13 @@ export class PeerService {
   }
 
   async broadcastMessage(message: PeerMessage): Promise<void> {
-    const promises = Array.from(this.dataConnections.keys(), peerId =>
+    const peerIds = Array.from(this.dataConnections.keys());
+    this.logger.log('message', `BROADCAST to ${peerIds.length} peers`, { 
+      type: message.type, 
+      recipients: peerIds 
+    }, { group: true, collapsed: true });
+    
+    const promises = peerIds.map(peerId =>
       this.sendMessage(peerId, { ...message, payload: { ...message.payload } })
     );
     await Promise.allSettled(promises);
@@ -133,30 +166,36 @@ export class PeerService {
 
   callPeer(peerId: string, stream: MediaStream): void {
     if (!this.peer) return;
+    this.logger.mediaCallInitiated(peerId);
     const call = this.peer.call(peerId, stream);
     this.mediaConnections.set(peerId, call);
 
     call.on('stream', (remoteStream: MediaStream) => {
+      this.logger.remoteStreamReceived(peerId);
       this.remoteStreams.set(peerId, remoteStream);
       this.onRemoteStream$.next({ peerId, stream: remoteStream });
     });
 
     call.on('close', () => {
+      this.logger.mediaCallClosed(peerId);
       this.mediaConnections.delete(peerId);
       this.remoteStreams.delete(peerId);
     });
   }
 
   answerCall(call: any, stream: MediaStream): void {
+    this.logger.mediaCallAnswered(call.peer);
     call.answer(stream);
 
     call.on('stream', (remoteStream: MediaStream) => {
       const peerId = call.peer;
+      this.logger.remoteStreamReceived(peerId);
       this.remoteStreams.set(peerId, remoteStream);
       this.onRemoteStream$.next({ peerId, stream: remoteStream });
     });
 
     call.on('close', () => {
+      this.logger.mediaCallClosed(call.peer);
       this.remoteStreams.delete(call.peer);
     });
   }
@@ -182,6 +221,8 @@ export class PeerService {
   }
 
   disconnectFromPeer(peerId: string): void {
+    this.logger.disconnection('Local Peer', peerId, { action: 'manual disconnect' });
+    
     const dataConn = this.dataConnections.get(peerId);
     if (dataConn) {
       dataConn.close();
@@ -196,6 +237,16 @@ export class PeerService {
   }
 
   destroy(): void {
+    const dataPeers = Array.from(this.dataConnections.keys());
+    const mediaPeers = Array.from(this.mediaConnections.keys());
+    
+    if (dataPeers.length > 0 || mediaPeers.length > 0) {
+      this.logger.log('disconnection', 'Closing all connections', {
+        dataConnections: dataPeers,
+        mediaConnections: mediaPeers
+      }, { group: true });
+    }
+
     this.dataConnections.forEach(conn => conn.close());
     this.mediaConnections.forEach(conn => conn.close());
     this.dataConnections.clear();
@@ -203,6 +254,7 @@ export class PeerService {
     this.remoteStreams.clear();
 
     if (this.peer) {
+      this.logger.peerDestroyed();
       this.peer.destroy();
       this.peer = null;
     }
