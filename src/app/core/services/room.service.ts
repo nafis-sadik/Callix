@@ -59,7 +59,7 @@ export class RoomService {
     this.peerService.onDisconnected$.subscribe((peerId) => {
       const room = this.currentRoom();
       if (!room) return;
-      
+
       if (this.isHost()) {
         const disconnectedParticipant = Array.from(room.participants.values()).find(p => p.peerId === peerId);
         if (disconnectedParticipant) {
@@ -69,7 +69,7 @@ export class RoomService {
           });
         }
       }
-      
+
       if (peerId === room.id) {
         this.handleKickedImplicit();
       }
@@ -179,33 +179,33 @@ export class RoomService {
     return room;
   }
 
-  async joinRoom(roomId: string): Promise<void> {
+  async joinRoom(userId: string, roomId: string): Promise<void> {
     try {
       this.logger.guestJoinRequestSent(roomId);
-      await this.peerService.connectToPeer(roomId);
+      await this.peerService.connectToPeer(userId, roomId);
 
       const user = this.authService.currentUser();
       if (!user) throw new Error('User not authenticated');
 
       const joinRequest = this.createPeerMessage('join-request', {
-          userId: user.id,
-          displayName: user.displayName,
-          peerId: this.peerService.peerId || ''
-        }, user.id);
+        userId: user.id,
+        displayName: user.displayName,
+        peerId: this.peerService.peerId || ''
+      }, user.id);
 
       await this.peerService.sendMessage(roomId, joinRequest);
     } catch (err) {
-      this.logger.log('error', 'Failed to join room', { 
-        roomId, 
-        error: err instanceof Error ? err.message : String(err) 
+      this.logger.log('error', 'Failed to join room', {
+        roomId,
+        error: err instanceof Error ? err.message : String(err)
       }, { group: true });
       console.error('Failed to join room:', err);
       throw err;
     }
   }
 
-  async joinRoomAndWait(roomId: string): Promise<JoinResult> {
-    await this.joinRoom(roomId);
+  async joinRoomAndWait(userId: string, roomId: string): Promise<JoinResult> {
+    await this.joinRoom(userId, roomId);
 
     return new Promise<JoinResult>((resolve, reject) => {
       this.joinRequests.set(roomId, { resolve, reject });
@@ -318,8 +318,8 @@ export class RoomService {
     const user = this.authService.currentUser();
     const kickMsg = this.createPeerMessage('kick', { userId }, user?.id || '');
     this.peerService.sendMessage(participant.peerId, kickMsg).catch(err => {
-      this.logger.log('error', 'Failed to send kick message', { 
-        userId, error: err instanceof Error ? err.message : String(err) 
+      this.logger.log('error', 'Failed to send kick message', {
+        userId, error: err instanceof Error ? err.message : String(err)
       }, { group: true });
       console.error('Failed to send kick message:', err);
       this.completeKick(userId);
@@ -365,7 +365,7 @@ export class RoomService {
     const oldBanList = Array.from(room.banList);
     room.banList.clear();
     this.banList.set([]);
-    this.logger.log('ban', 'HOST UNBANNED ALL users', { 
+    this.logger.log('ban', 'HOST UNBANNED ALL users', {
       previouslyBanned: oldBanList,
       count: oldBanList.length
     }, { group: true });
@@ -389,7 +389,7 @@ export class RoomService {
     if (this.isHost()) {
       const participantCount = room.participants.size - 1;
       this.logger.hostDestroyedRoom(room.id, participantCount);
-      
+
       const destroyMsg = this.createPeerMessage('room-destroyed', { roomId: room.id }, user?.id || '');
       this.peerService.broadcastMessage(destroyMsg).catch(err => console.error('Failed to broadcast room destroy:', err));
       this.peerService.destroy();
@@ -424,13 +424,13 @@ export class RoomService {
 
     const message: Message = typeof content === 'string'
       ? {
-          id: uuidv4(),
-          senderId: user.id,
-          senderName: user.displayName,
-          content,
-          timestamp: Date.now(),
-          type
-        }
+        id: uuidv4(),
+        senderId: user.id,
+        senderName: user.displayName,
+        content,
+        timestamp: Date.now(),
+        type
+      }
       : content;
 
     const room = this.currentRoom();
@@ -585,7 +585,7 @@ export class RoomService {
     if (this.isBeingKicked) return;
     this.isBeingKicked = true;
 
-    this.logger.log('kick', 'Implicit kick detected (host disconnected)', { 
+    this.logger.log('kick', 'Implicit kick detected (host disconnected)', {
       reason: 'connection to host lost'
     }, { group: true });
 
@@ -603,7 +603,7 @@ export class RoomService {
 
   private handleKickConfirmation(message: PeerMessage): void {
     const { userId } = message.payload;
-    this.logger.log('kick', `Kick confirmation received from: ${userId}`, { 
+    this.logger.log('kick', `Kick confirmation received from: ${userId}`, {
       userId, status: 'completing kick'
     }, { group: true });
     this.clearKickTimeout(userId);
@@ -718,7 +718,7 @@ export class RoomService {
       if (this.currentRoom()?.id !== hostPeerId) return;
       await this.peerService.sendMessage(hostPeerId, response);
     }).catch(err => {
-      this.logger.log('error', 'Key exchange failed', { 
+      this.logger.log('error', 'Key exchange failed', {
         peerId: message.senderId,
         error: err instanceof Error ? err.message : String(err)
       }, { group: true });
@@ -738,7 +738,7 @@ export class RoomService {
       await this.encryptionService.deriveRoomKeyFromShared(sharedSecret);
       this.logger.keyExchangeComplete(message.senderId);
     }).catch(err => {
-      this.logger.log('error', 'Key exchange response failed', { 
+      this.logger.log('error', 'Key exchange response failed', {
         peerId: message.senderId,
         error: err instanceof Error ? err.message : String(err)
       }, { group: true });
@@ -753,7 +753,7 @@ export class RoomService {
       const msg = this.createPeerMessage('key-exchange', { peerId, publicKey }, this.authService.currentUser()?.id || '');
       await this.peerService.sendMessage(peerId, msg);
     }).catch(err => {
-      this.logger.log('error', 'Failed to initiate key exchange', { 
+      this.logger.log('error', 'Failed to initiate key exchange', {
         peerId,
         error: err instanceof Error ? err.message : String(err)
       }, { group: true });

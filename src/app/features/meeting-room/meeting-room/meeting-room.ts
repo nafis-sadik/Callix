@@ -55,6 +55,7 @@ export interface VideoSettings {
   styleUrl: './meeting-room.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
+
 export class MeetingRoomComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   private route = inject(ActivatedRoute);

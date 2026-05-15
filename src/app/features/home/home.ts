@@ -103,7 +103,9 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.joiningState.set('waiting');
 
     try {
-      const result = await this.roomService.joinRoomAndWait(guid);
+      const user = this.authService.currentUser();
+      if (!user) throw new Error('User not authenticated');
+      const result = await this.roomService.joinRoomAndWait(user.id, guid);
 
       this.joiningState.set('idle');
       this.joiningRoomId = '';
@@ -145,7 +147,7 @@ export class HomeComponent implements OnInit, OnDestroy {
           this.stopScanner();
           this.joinRoom();
         },
-        () => {}
+        () => { }
       );
     } catch {
       this.alertService.showError('Camera Error', 'Could not access camera. Please check permissions.');
@@ -155,7 +157,7 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   stopScanner(): void {
     if (this.qrCodeReader) {
-      this.qrCodeReader.stop().catch(() => {});
+      this.qrCodeReader.stop().catch(() => { });
       this.qrCodeReader = null;
     }
     this.showQrScanner.set(false);

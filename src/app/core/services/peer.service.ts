@@ -26,7 +26,7 @@ export class PeerService {
     return this.peerIdValue;
   }
 
-  constructor(private encryptionService: EncryptionService) {}
+  constructor(private encryptionService: EncryptionService) { }
 
   initializePeer(userId: string): void {
     if (this.peer) {
@@ -63,17 +63,20 @@ export class PeerService {
     });
   }
 
-  connectToPeer(peerId: string): Promise<void> {
+  connectToPeer(userId: string, peerId: string): Promise<void> {
     return new Promise((resolve, reject) => {
       if (!this.peer) {
-        const err = new Error('Peer not initialized');
-        this.logger.log('error', 'connectToPeer failed', { error: err.message, peerId }, { group: true });
-        reject(err);
-        return;
+        this.initializePeer(userId);
       }
 
       this.logger.connection('Local Peer', peerId, { action: 'initiating connection' });
-      const conn = this.peer.connect(peerId);
+      const conn = this.peer?.connect(peerId);
+
+      if (!conn) {
+        this.logger.log('error', 'Connection failed', { peerId, error: 'No connection' }, { group: true });
+        reject(new Error('No connection to peer ' + peerId));
+        return;
+      }
 
       conn.on('open', () => {
         this.dataConnections.set(peerId, conn);
@@ -114,8 +117,8 @@ export class PeerService {
           this.onMessage$.next(message);
         }
       } catch (err) {
-        this.logger.log('error', 'Error processing message', { 
-          peerId, error: err instanceof Error ? err.message : String(err) 
+        this.logger.log('error', 'Error processing message', {
+          peerId, error: err instanceof Error ? err.message : String(err)
         }, { group: true });
         console.error('Error processing message:', err);
       }
@@ -123,9 +126,9 @@ export class PeerService {
 
     conn.on('close', () => {
       this.dataConnections.delete(peerId);
-      this.logger.disconnection('Local Peer', peerId, { 
-        connectionType: 'data', 
-        reason: 'connection closed by peer' 
+      this.logger.disconnection('Local Peer', peerId, {
+        connectionType: 'data',
+        reason: 'connection closed by peer'
       });
       this.logger.connectedPeersList(Array.from(this.dataConnections.keys()));
       this.onDisconnected$.next(peerId);
@@ -153,11 +156,11 @@ export class PeerService {
 
   async broadcastMessage(message: PeerMessage): Promise<void> {
     const peerIds = Array.from(this.dataConnections.keys());
-    this.logger.log('message', `BROADCAST to ${peerIds.length} peers`, { 
-      type: message.type, 
-      recipients: peerIds 
+    this.logger.log('message', `BROADCAST to ${peerIds.length} peers`, {
+      type: message.type,
+      recipients: peerIds
     }, { group: true, collapsed: true });
-    
+
     const promises = peerIds.map(peerId =>
       this.sendMessage(peerId, { ...message, payload: { ...message.payload } })
     );
@@ -222,7 +225,7 @@ export class PeerService {
 
   disconnectFromPeer(peerId: string): void {
     this.logger.disconnection('Local Peer', peerId, { action: 'manual disconnect' });
-    
+
     const dataConn = this.dataConnections.get(peerId);
     if (dataConn) {
       dataConn.close();
@@ -239,7 +242,7 @@ export class PeerService {
   destroy(): void {
     const dataPeers = Array.from(this.dataConnections.keys());
     const mediaPeers = Array.from(this.mediaConnections.keys());
-    
+
     if (dataPeers.length > 0 || mediaPeers.length > 0) {
       this.logger.log('disconnection', 'Closing all connections', {
         dataConnections: dataPeers,
