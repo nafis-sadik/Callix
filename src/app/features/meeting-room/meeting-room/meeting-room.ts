@@ -95,6 +95,21 @@ export class MeetingRoomComponent implements OnInit, OnDestroy {
 
   protected readonly currentUserId = computed(() => this.authService.currentUser()?.id ?? '');
 
+  protected readonly carouselParticipants = computed(() => {
+    const participants = this.roomService.participants();
+    const streams = this.remoteStreams();
+    const local = this.localStream();
+    const uid = this.currentUserId();
+    return participants.map(p => ({
+      id: p.id,
+      peerId: p.peerId,
+      displayName: p.displayName,
+      isHost: p.isHost,
+      stream: p.id === uid ? local : (streams.find(s => s.peerId === p.peerId)?.stream ?? null),
+      isLocal: p.id === uid,
+    }));
+  });
+
   protected readonly bigScreenStream = computed(() => {
     const pinned = this.pinnedParticipantId();
     if (pinned) {

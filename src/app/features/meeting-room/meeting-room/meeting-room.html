@@ -51,48 +51,28 @@
           <div class="backdrop-blur-xl bg-black/50 p-4 pt-6 rounded-t-[16px]"
             style="border-top: 1px solid rgba(255,255,255,0.12);">
             <div class="flex items-center gap-3 overflow-x-auto">
-              <!-- Local participant -->
-              @if (localStream()) {
+              @for (item of carouselParticipants(); track item.id) {
               <div class="flex-shrink-0 w-28 h-28 flex flex-col items-center justify-center cursor-pointer rounded-xl"
-                (click)="pinParticipant(currentUserId())"
-                [class.ring-2]="pinnedParticipantId() === currentUserId()"
+                (click)="pinParticipant(item.peerId)"
+                [class.ring-2]="pinnedParticipantId() === item.peerId"
                 style="--tw-ring-color: var(--color-primary); background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); overflow: hidden;">
-                <video [srcObject]="localStream()" autoplay muted
+                @if (item.stream) {
+                <video [srcObject]="item.stream" autoplay [muted]="item.isLocal"
                   class="w-full flex-1 object-cover rounded-t-xl"></video>
-                <span class="text-xs py-1 px-2 w-full text-center truncate"
-                  style="color: var(--color-text-secondary); background: rgba(0,0,0,0.4);">
-                  {{ authService.currentUser()?.displayName || 'You' }}
-                </span>
-              </div>
-              }
-
-              <!-- Remote participants -->
-              @for (item of remoteStreams(); track item.peerId) {
-              <div class="flex-shrink-0 w-28 h-28 flex flex-col items-center justify-center cursor-pointer rounded-xl"
-                (click)="pinParticipant(item.peerId)" [class.ring-2]="pinnedParticipantId() === item.peerId"
-                style="--tw-ring-color: var(--color-primary); background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); overflow: hidden;">
-                <video [srcObject]="item.stream" autoplay class="w-full flex-1 object-cover rounded-t-xl"></video>
-                <span class="text-xs py-1 px-2 w-full text-center truncate"
-                  style="color: var(--color-text-secondary); background: rgba(0,0,0,0.4);">
-                  Participant
-                </span>
-              </div>
-              }
-
-              @if (remoteStreams().length === 0 && !localStream()) {
-              @for (participant of roomService.participants(); track participant.id) {
-              <div class="flex-shrink-0 w-28 h-28 flex flex-col items-center justify-center rounded-xl"
-                style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);">
-                <div class="w-12 h-12 rounded-full bg-gray-500 flex items-center justify-center">
-                  <span class="text-sm font-bold" style="color: var(--color-text-primary);">
-                    {{ participant.displayName.charAt(0).toUpperCase() }}
-                  </span>
+                } @else {
+                <div class="flex-1 flex items-center justify-center w-full">
+                  <div class="w-12 h-12 rounded-full bg-gray-500 flex items-center justify-center">
+                    <span class="text-sm font-bold" style="color: var(--color-text-primary);">
+                      {{ item.displayName.charAt(0).toUpperCase() }}
+                    </span>
+                  </div>
                 </div>
-                <span class="text-xs mt-2 truncate w-full text-center px-1" style="color: var(--color-text-secondary);">
-                  {{ participant.displayName }}
+                }
+                <span class="text-xs py-1 px-2 w-full text-center truncate"
+                  style="color: var(--color-text-secondary); background: rgba(0,0,0,0.4);">
+                  {{ item.displayName }}
                 </span>
               </div>
-              }
               }
             </div>
           </div>
