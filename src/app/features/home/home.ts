@@ -58,6 +58,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   ];
 
   ngOnInit(): void {
+    debugger;
     const user = this.authService.currentUser();
     if (user) {
       if (this.peerService.peerId && this.peerService.peerId !== user.id) {
