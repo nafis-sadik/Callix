@@ -394,14 +394,13 @@ export class RoomService {
       this.peerService.broadcastMessage(destroyMsg).catch(err => console.error('Failed to broadcast room destroy:', err));
       this.peerService.destroy();
     } else {
+      this.resetRoom();
+      this.encryptionService.clearKeys();
       const host = Array.from(room.participants.values()).find(p => p.isHost);
       if (host) {
         this.peerService.disconnectFromPeer(host.peerId);
       }
     }
-
-    this.resetRoom();
-    this.encryptionService.clearKeys();
   }
 
   private resetRoom(): void {
