@@ -4,6 +4,7 @@
 | Version | Date | Description |
 |---------|------|-------------|
 | 1.0 | 2026-05-15 | Initial SRS based on codebase v1.0 |
+| 1.1 | 2026-05-16 | Fixed host-left redirect, participant sync, ban list state leak |
 
 ---
 
@@ -105,6 +106,7 @@ Callix is a standalone Progressive Web Application with no backend dependency. I
 | MTG-21 | Emoji keyboard in chat | ❌ Not implemented | Not in dependencies |
 | MTG-22 | Unlimited participants | ✅ Implemented | Mesh topology; degrades past ~10 |
 | MTG-23 | Unlimited duration | ✅ Implemented | As long as host stays connected |
+| MTG-24 | Participant list syncs across all clients | ✅ Implemented | `participant-update` broadcast on join/leave/disconnect |
 
 ### 3.4 Host Controls
 
@@ -123,7 +125,9 @@ Callix is a standalone Progressive Web Application with no backend dependency. I
 | HC-M-09 | Unban individual | ✅ Implemented | |
 | HC-M-10 | Unban all | ✅ Implemented | |
 | HC-M-11 | Host-only media URL playback | ✅ Implemented | MediaPlayerModal |
-| HC-M-12 | Host leaves — room destroyed — guests notified | ✅ Implemented | `showRoomDestroyed()` modal |
+| HC-M-12 | Host leaves (explicit) — room destroyed — guests notified | ✅ Implemented | `handleRoomDestroyed()` → `handleHostLeft()`; non-dismissible "Yes" modal |
+| HC-M-13 | Guest redirected to home after host leaves | ✅ Implemented | `await showRoomDestroyed()` → `router.navigate(['/home'])` |
+| HC-M-14 | Host disconnects implicitly (crash/drop) — guests notified and redirected | ✅ Implemented | `onDisconnected$` → `handleKickedImplicit()` → `handleHostLeft()` |
 
 #### 3.4.2 Chat Room Host Controls
 
@@ -279,9 +283,12 @@ Callix is a standalone Progressive Web Application with no backend dependency. I
 | # | Description | Severity | Area |
 |---|-------------|----------|------|
 | B-01 | E2E encryption non-functional — `encrypted` always `false` | Critical | Security |
-| B-02 | No `participant-update` broadcast when new user joins | High | Room sync |
+| B-02 | No `participant-update` broadcast when new user joins | High | Room sync | ✅ Fixed — broadcast added in `approveRequest()` |
 | B-03 | Guest voluntarily leaving triggers kicked modal (fixed in b82cefb) | High | Room logic |
-| B-04 | `approveAll()` doesn't broadcast participant updates | High | Room sync |
+| B-04 | `approveAll()` broadcasts N times for N users | High | Room sync | ✅ Fixed — extracted `processApproval()`; single broadcast after batch |
+| B-11 | No `participant-update` broadcast when guest disconnects | High | Room sync | ✅ Fixed — host removes participant + broadcasts in `setupDisconnectListener()` |
+| B-12 | Guest `leaveRoom()` only disconnects from host, not all peers | Medium | Room logic | ✅ Fixed — disconnects from all participants in mesh |
+| B-13 | Host `leaveRoom()` doesn't clear room signals; stale `banList` leaks into new rooms | High | Room state | ✅ Fixed — added `resetRoom()` in host's `leaveRoom()` and `createRoom()` |
 | B-05 | `banUser()` doesn't self-broadcast (fragile dependency) | Low | Room sync |
 | B-06 | `'ban'`/`'unban'` message handlers are dead code | Low | Maintenance |
 | B-07 | Algorithm options beyond AES-GCM are cosmetic | Low | Encryption |
@@ -309,10 +316,18 @@ If approved:
   → Guest enters room
   → Room active
 
-Host leaves:
+Host leaves (explicit):
   → 'room-destroyed' broadcast to all guests
   → All peers disconnect
-  → Room state destroyed
+  → Room state destroyed (signals cleared)
+  → "Meeting Ended" modal shown (non-dismissible, "Yes" only)
+  → Guest clicks "Yes" → redirected to /home
+
+Host disconnects (implicit — crash/power cut):
+  → WebRTC connection drops
+  → Host's onDisconnected$ detected by each guest
+  → Guest checks peerId === room.id
+  → Same "host left" flow: destroy peer, clear state, show modal, redirect to /home
 
 Guest kicked:
   → 'kick' message sent to guest

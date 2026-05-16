@@ -67,6 +67,16 @@ export class RoomService {
             userId: disconnectedParticipant.id,
             peerId: peerId
           });
+
+          room.participants.delete(disconnectedParticipant.id);
+          this.updateParticipantsFromRoom(room);
+          this.refreshCurrentRoom();
+
+          const user = this.authService.currentUser();
+          const updateMsg = this.createPeerMessage('participant-update', {
+            participants: Array.from(room.participants.values())
+          }, user?.id || '');
+          this.peerService.broadcastMessage(updateMsg).catch(err => console.error('Failed to broadcast participant update:', err));
         }
       }
 
@@ -143,6 +153,8 @@ export class RoomService {
   createRoom(type: RoomType, name: string, algorithm: EncryptionAlgorithm = 'AES-GCM-256'): Room {
     const user = this.authService.currentUser();
     if (!user) throw new Error('User not authenticated');
+
+    this.resetRoom();
 
     const roomId = uuidv4();
     const room: Room = {
@@ -231,17 +243,11 @@ export class RoomService {
     }
   }
 
-  approveRequest(userId: string): void {
-    const room = this.currentRoom();
-    if (!room || !this.isHost()) return;
-
-    const request = room.pendingRequests.get(userId);
-    if (!request) return;
-
+  private processApproval(request: JoinRequest, room: Room): void {
     this.logger.hostApprovedJoin(request.userId, request.displayName);
 
-    room.pendingRequests.delete(userId);
-    room.participants.set(userId, {
+    room.pendingRequests.delete(request.userId);
+    room.participants.set(request.userId, {
       id: request.userId,
       displayName: request.displayName,
       peerId: request.peerId
@@ -270,6 +276,22 @@ export class RoomService {
     this.sendHistorySync(request.peerId);
   }
 
+  approveRequest(userId: string): void {
+    const room = this.currentRoom();
+    if (!room || !this.isHost()) return;
+
+    const request = room.pendingRequests.get(userId);
+    if (!request) return;
+
+    this.processApproval(request, room);
+
+    const user = this.authService.currentUser();
+    const updateMsg = this.createPeerMessage('participant-update', {
+      participants: Array.from(room.participants.values())
+    }, user?.id || '');
+    this.peerService.broadcastMessage(updateMsg).catch(err => console.error('Failed to broadcast participant update:', err));
+  }
+
   denyRequest(userId: string): void {
     const room = this.currentRoom();
     if (!room || !this.isHost()) return;
@@ -291,10 +313,21 @@ export class RoomService {
 
   approveAll(): void {
     const room = this.currentRoom();
-    if (!room) return;
+    if (!room || !this.isHost()) return;
 
-    const requests = Array.from(room.pendingRequests.keys());
-    requests.forEach(id => this.approveRequest(id));
+    const ids = Array.from(room.pendingRequests.keys());
+    ids.forEach(id => {
+      const request = room.pendingRequests.get(id);
+      if (request) {
+        this.processApproval(request, room);
+      }
+    });
+
+    const user = this.authService.currentUser();
+    const updateMsg = this.createPeerMessage('participant-update', {
+      participants: Array.from(room.participants.values())
+    }, user?.id || '');
+    this.peerService.broadcastMessage(updateMsg).catch(err => console.error('Failed to broadcast participant update:', err));
   }
 
   denyAll(): void {
@@ -393,13 +426,16 @@ export class RoomService {
       const destroyMsg = this.createPeerMessage('room-destroyed', { roomId: room.id }, user?.id || '');
       this.peerService.broadcastMessage(destroyMsg).catch(err => console.error('Failed to broadcast room destroy:', err));
       this.peerService.destroy();
+      this.resetRoom();
     } else {
+      const currentUserId = user?.id;
       this.resetRoom();
       this.encryptionService.clearKeys();
-      const host = Array.from(room.participants.values()).find(p => p.isHost);
-      if (host) {
-        this.peerService.disconnectFromPeer(host.peerId);
-      }
+      room.participants.forEach(p => {
+        if (p.id !== currentUserId) {
+          this.peerService.disconnectFromPeer(p.peerId);
+        }
+      });
     }
   }
 
@@ -580,24 +616,32 @@ export class RoomService {
     this.router.navigate(['/home']);
   }
 
-  private async handleKickedImplicit(): Promise<void> {
+  private async handleHostLeft(): Promise<void> {
     if (this.isBeingKicked) return;
     this.isBeingKicked = true;
+
+    this.logger.roomDestroyedByHost();
+    this.peerService.destroy();
+    this.resetRoom();
+    this.encryptionService.clearKeys();
+
+    await Promise.race([
+      this.alertService.showRoomDestroyed(),
+      new Promise<void>(resolve => setTimeout(resolve, 15000))
+    ]);
+
+    this.router.navigate(['/home']);
+  }
+
+  private async handleKickedImplicit(): Promise<void> {
+    const room = this.currentRoom();
+    if (!room) return;
 
     this.logger.log('kick', 'Implicit kick detected (host disconnected)', {
       reason: 'connection to host lost'
     }, { group: true });
 
-    const room = this.currentRoom();
-    if (!room) return;
-    await Promise.race([
-      this.alertService.showKicked('You have been removed from the room.'),
-      new Promise<void>(resolve => setTimeout(resolve, 15000))
-    ]);
-    this.peerService.destroy();
-    this.resetRoom();
-    this.encryptionService.clearKeys();
-    this.router.navigate(['/home']);
+    this.handleHostLeft();
   }
 
   private handleKickConfirmation(message: PeerMessage): void {
@@ -681,11 +725,7 @@ export class RoomService {
   }
 
   private handleRoomDestroyed(): void {
-    this.logger.roomDestroyedByHost();
-    this.alertService.showRoomDestroyed();
-    this.resetRoom();
-    this.encryptionService.clearKeys();
-    this.peerService.destroy();
+    this.handleHostLeft();
   }
 
   private handleFileComplete(message: PeerMessage): void {

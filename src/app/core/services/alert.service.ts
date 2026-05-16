@@ -42,9 +42,10 @@ export class AlertService {
     return new Promise((resolve) => {
       this.confirmationService.confirm({
         header: 'Meeting Ended',
-        message: 'The host has ended the meeting.',
+        message: 'The host has left, the meeting has ended.',
         rejectVisible: false,
         closable: false,
+        acceptLabel: 'Yes',
         accept: () => resolve()
       });
     });
