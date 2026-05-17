@@ -11,7 +11,7 @@ import { MediaSyncService } from '../../../core/services/media-sync.service';
 import { FileTransferService } from '../../../core/services/file-transfer.service';
 import { AlertService } from '../../../core/services/alert.service';
 
-import { SharedFile } from '../../../core/models/room.model';
+import { SharedFile, User } from '../../../core/models/room.model';
 import { PeerMessage } from '../../../core/models/peer-message.model';
 import { QrCodeModalComponent } from '../../../shared/components/qr-code-modal/qr-code-modal.component';
 import { MediaPlayerModalComponent } from '../components/media-player-modal/media-player-modal.component';
@@ -93,6 +93,9 @@ export class MeetingRoomComponent implements OnInit, OnDestroy {
   screenStream = signal<MediaStream | null>(null);
   remoteStreams = signal<{ peerId: string, stream: MediaStream }[]>([]);
 
+  private calledPeers = new Set<string>();
+  private pendingCalls: any[] = [];
+
   protected readonly currentUserId = computed(() => this.authService.currentUser()?.id ?? '');
 
   protected readonly carouselParticipants = computed(() => {
@@ -145,15 +148,31 @@ export class MeetingRoomComponent implements OnInit, OnDestroy {
       const stream = this.localStream();
       if (stream) {
         this.peerService.answerCall(call, stream);
+      } else {
+        this.pendingCalls.push(call);
       }
     });
 
-    this.initMedia();
+    this.peerService.onMessage$.pipe(takeUntil(this.destroy$)).subscribe(msg => {
+      if (msg.type === 'participant-update' && Array.isArray(msg.payload?.participants)) {
+        this.callParticipants(msg.payload.participants);
+      }
+    });
+
+    this.initMedia().then(() => {
+      for (const call of this.pendingCalls) {
+        this.peerService.answerCall(call, this.localStream()!);
+      }
+      this.pendingCalls = [];
+      this.callAllParticipants();
+    });
   }
 
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+    this.calledPeers.clear();
+    this.pendingCalls.length = 0;
   }
 
   async initMedia(): Promise<void> {
@@ -391,8 +410,30 @@ export class MeetingRoomComponent implements OnInit, OnDestroy {
     this.remoteStreams.set([]);
   }
 
+  private callAllParticipants(): void {
+    this.callParticipants(this.roomService.participants());
+  }
+
+  private callParticipants(participants: User[]): void {
+    const stream = this.localStream();
+    if (!stream) return;
+    const currentUser = this.authService.currentUser();
+    for (const p of participants) {
+      if (p.id !== currentUser?.id && !this.calledPeers.has(p.peerId)) {
+        this.calledPeers.add(p.peerId);
+        this.peerService.callPeer(p.peerId, stream);
+      }
+    }
+  }
+
   approveRequest(userId: string): void {
     this.roomService.approveRequest(userId);
+    const participant = this.roomService.participants().find(p => p.id === userId);
+    const stream = this.localStream();
+    if (participant && stream && !this.calledPeers.has(participant.peerId)) {
+      this.calledPeers.add(participant.peerId);
+      this.peerService.callPeer(participant.peerId, stream);
+    }
   }
 
   denyRequest(userId: string): void {
