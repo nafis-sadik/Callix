@@ -1,0 +1,1 @@
+import{Q as a}from"./chunk-3EFON6GN.js";var i=class r{transform(n){let f=Date.now()-n,m=Math.floor(f/1e3),o=Math.floor(m/60),t=Math.floor(o/60),s=Math.floor(t/24);return s>0?`${s}d ago`:t>0?`${t}h ago`:o>0?`${o}m ago`:"just now"}static \u0275fac=function(e){return new(e||r)};static \u0275pipe=a({name:"timeAgo",type:r,pure:!1})};export{i as a};
