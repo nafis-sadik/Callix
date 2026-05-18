@@ -2,7 +2,7 @@
   "name": "Callix",
   "short_name": "Callix",
   "description": "P2P meetings and chat — no servers, no limits",
-  "start_url": "/",
+    "start_url": "./",
   "display": "standalone",
   "background_color": "#111111",
   "theme_color": "#4F6AF0",
