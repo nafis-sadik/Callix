@@ -69,11 +69,11 @@ export class LoggerService {
        window.location.hostname === '127.0.0.1' ||
        window.location.hostname === '');
     
-    const shouldLog = isDev && isLocalhost;
+    const shouldLog = isDev || !isLocalhost;
     
     if (shouldLog) {
       console.log(
-        `%c[DEV LOGGER]%c Detailed logging enabled (dev mode + localhost)`,
+        `%c[LOGGER]%c Detailed logging enabled`,
         'color: #22c55e; background: #1a2e1a; font-weight: bold; padding: 4px 8px; border-radius: 4px;',
         'color: #9ca3af;'
       );

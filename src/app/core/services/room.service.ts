@@ -150,7 +150,7 @@ export class RoomService {
     }
   }
 
-  createRoom(type: RoomType, name: string, algorithm: EncryptionAlgorithm = 'AES-GCM-256'): Room {
+  async createRoom(type: RoomType, name: string, algorithm: EncryptionAlgorithm = 'AES-GCM-256'): Promise<Room> {
     const user = this.authService.currentUser();
     if (!user) throw new Error('User not authenticated');
 
@@ -174,7 +174,7 @@ export class RoomService {
     this.logger.hostCreatedRoom(roomId, name);
 
     this.peerService.destroy();
-    this.peerService.initializePeer(roomId);
+    await this.peerService.initializePeer(roomId);
 
     room.participants.set(user.id, {
       id: user.id,

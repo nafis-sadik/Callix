@@ -20,23 +20,41 @@ export class PeerService {
   onDisconnected$ = new Subject<string>();
 
   private peerIdValue: string | null = null;
+  private peerReady = false;
+  private peerReadyResolver: (() => void) | null = null;
+  private peerReadyPromise: Promise<void>;
   private logger = inject(LoggerService);
 
   get peerId(): string | null {
     return this.peerIdValue;
   }
 
-  constructor(private encryptionService: EncryptionService) { }
+  constructor(private encryptionService: EncryptionService) {
+    this.peerReadyPromise = new Promise((resolve) => {
+      this.peerReadyResolver = resolve;
+    });
+  }
 
-  initializePeer(userId: string): void {
+  initializePeer(userId: string): Promise<void> {
     if (this.peer) {
       this.destroy();
     }
+
+    this.peerReady = false;
+    this.peerReadyPromise = new Promise((resolve) => {
+      this.peerReadyResolver = resolve;
+    });
+
     this.peer = new Peer(userId, {
+      debug: 1,
       config: {
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' }
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' },
+          { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+          { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+          { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
         ]
       }
     });
@@ -44,6 +62,8 @@ export class PeerService {
     this.peer.on('open', (id) => {
       this.peerIdValue = id;
       this.peerId$.next(id);
+      this.peerReady = true;
+      this.peerReadyResolver?.();
       this.logger.peerInitialized(id);
     });
 
@@ -58,18 +78,21 @@ export class PeerService {
     });
 
     this.peer.on('error', (err) => {
-      this.logger.log('error', 'Peer error', { error: err.message || String(err) }, { group: true });
+      this.logger.log('error', 'Peer error', { error: err.message || String(err), type: err.type }, { group: true });
       console.error('Peer error:', err);
     });
+
+    return this.peerReadyPromise;
   }
 
-  connectToPeer(userId: string, peerId: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      if (!this.peer) {
-        this.initializePeer(userId);
-      }
+  async connectToPeer(userId: string, peerId: string): Promise<void> {
+    if (!this.peer || !this.peerReady) {
+      await this.initializePeer(userId);
+    }
 
-      this.logger.connection('Local Peer', peerId, { action: 'initiating connection' });
+    this.logger.connection('Local Peer', peerId, { action: 'initiating connection' });
+
+    return new Promise((resolve, reject) => {
       const conn = this.peer?.connect(peerId);
 
       if (!conn) {
@@ -262,6 +285,11 @@ export class PeerService {
       this.peer = null;
     }
     this.peerIdValue = null;
+    this.peerReady = false;
+
+    this.peerReadyPromise = new Promise((resolve) => {
+      this.peerReadyResolver = resolve;
+    });
   }
 
   isConnectedTo(peerId: string): boolean {

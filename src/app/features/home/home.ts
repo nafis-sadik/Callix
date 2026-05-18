@@ -57,14 +57,13 @@ export class HomeComponent implements OnInit, OnDestroy {
     { value: 'none', label: 'None (No Encryption)' }
   ];
 
-  ngOnInit(): void {
-    debugger;
+  async ngOnInit(): Promise<void> {
     const user = this.authService.currentUser();
     if (user) {
       if (this.peerService.peerId && this.peerService.peerId !== user.id) {
         this.peerService.destroy();
       }
-      this.peerService.initializePeer(user.id);
+      await this.peerService.initializePeer(user.id);
     }
   }
 
@@ -79,7 +78,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     }
 
     const name = this.roomType === 'meeting' ? (this.newRoomName.trim() || 'Meeting') : this.newRoomName;
-    const room = this.roomService.createRoom(this.roomType, name, this.encryptionAlgo);
+    const room = await this.roomService.createRoom(this.roomType, name, this.encryptionAlgo);
     if (this.encryptionAlgo !== 'none') {
       await this.encryptionService.generateRoomKey(this.encryptionAlgo);
     }
